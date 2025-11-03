@@ -29,18 +29,37 @@
   min-width: 0;
 }
 
+.quote-link {
+  text-decoration: none;
+  cursor: pointer;
+  display: block;
+}
+
 .quote {
   font-size: 14px;
   color: #666;
   font-style: italic;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 600;
+  line-height: 1.4;
   transition: color 0.3s;
+  display: flex;
+  flex-direction: column;
+}
+
+.quote-line {
+  display: block;
+}
+
+.quote-link:hover .quote {
+  color: #667eea;
 }
 
 .dark-theme .quote {
   color: #999;
+}
+
+.dark-theme .quote-link:hover .quote {
+  color: #8a9eff;
 }
 
 .header-center {
@@ -232,6 +251,7 @@
 }
 
 @media (max-width: 768px) {
+  .quote-link,
   .quote {
     display: none;
   }

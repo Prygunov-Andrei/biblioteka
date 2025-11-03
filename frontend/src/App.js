@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import PrivateRoute from './components/PrivateRoute';
 import LoginPage from './pages/LoginPage';
 import MainPage from './pages/MainPage';
+import UserPage from './pages/UserPage';
 import { isAuthenticated } from './utils/auth';
 import './App.css';
 
@@ -20,6 +21,14 @@ function App() {
           element={
             <PrivateRoute>
               <MainPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <UserPage />
             </PrivateRoute>
           }
         />

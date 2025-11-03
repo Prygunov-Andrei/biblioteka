@@ -4,6 +4,7 @@ ViewSet для библиотек
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from ..models import Library
 from ..serializers import LibrarySerializer, BookSerializer
 from ..permissions import IsLibraryOwner
@@ -14,6 +15,16 @@ class LibraryViewSet(viewsets.ModelViewSet):
     queryset = Library.objects.select_related('owner')
     serializer_class = LibrarySerializer
     permission_classes = [IsLibraryOwner]
+    
+    def get_permissions(self):
+        """
+        Переопределяем права доступа для разных действий.
+        Для list, retrieve - AllowAny (все могут просматривать)
+        Для остальных действий - IsLibraryOwner (только владелец может редактировать)
+        """
+        if self.action in ['list', 'retrieve', 'my_libraries']:
+            return [AllowAny()]
+        return [IsLibraryOwner()]
     
     def get_queryset(self):
         queryset = super().get_queryset()

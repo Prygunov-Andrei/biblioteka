@@ -39,11 +39,31 @@ class Command(BaseCommand):
             type=int,
             help='ID библиотеки (если не указан, используется библиотека пользователя или создается)',
         )
+        parser.add_argument(
+            '--create-users',
+            type=int,
+            default=4,
+            help='Создать указанное количество пользователей с библиотеками (по умолчанию: 4)',
+        )
+        parser.add_argument(
+            '--libraries-per-user',
+            type=int,
+            default=2,
+            help='Количество библиотек на пользователя (по умолчанию: 2)',
+        )
+        parser.add_argument(
+            '--distribute-books',
+            action='store_true',
+            help='Распределять книги равномерно между всеми библиотеками',
+        )
 
     def handle(self, *args, **options):
         count_per_category = options['count_per_category']
         user_id = options.get('user_id')
         library_id = options.get('library_id')
+        create_users = options.get('create_users', 4)
+        libraries_per_user = options.get('libraries_per_user', 2)
+        distribute_books = options.get('distribute_books', False)
         
         self.stdout.write(
             self.style.SUCCESS(
@@ -56,15 +76,22 @@ class Command(BaseCommand):
             # Инициализируем фабрику
             factory = TestDataFactory(base_dir=base_dir)
             
-            # Настраиваем пользователя и библиотеку
-            factory.ensure_user_and_library(user_id=user_id, library_id=library_id)
-            
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f'👤 Пользователь: {factory.user.username}\n'
-                    f'📚 Библиотека: {factory.library.name}\n'
+            # Если не указаны конкретные user_id и library_id, создаем несколько пользователей
+            if not user_id and not library_id and (create_users > 0 or distribute_books):
+                factory.create_multiple_users_and_libraries(
+                    num_users=create_users,
+                    libraries_per_user=libraries_per_user
                 )
-            )
+                distribute_books = True  # Автоматически включаем распределение
+            else:
+                # Настраиваем одного пользователя и библиотеку (старый режим)
+                factory.ensure_user_and_library(user_id=user_id, library_id=library_id)
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'👤 Пользователь: {factory.user.username}\n'
+                        f'📚 Библиотека: {factory.library.name}\n'
+                    )
+                )
             
             # Загружаем данные
             factory.load_data()
@@ -74,11 +101,25 @@ class Command(BaseCommand):
             
             # Генерируем книги
             created_count = factory.generate_books_for_all_categories(
-                books_per_category=count_per_category
+                books_per_category=count_per_category,
+                distribute_to_all_libraries=distribute_books
             )
             
             # Очищаем временные файлы
             factory.cleanup()
+            
+            # Показываем статистику по библиотекам
+            if distribute_books and factory.all_libraries:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'\n📊 Статистика по библиотекам:\n'
+                    )
+                )
+                for library in factory.all_libraries:
+                    books_count = library.books.count()
+                    self.stdout.write(
+                        f'   {library.name} ({library.owner.username}): {books_count} книг\n'
+                    )
             
             self.stdout.write(
                 self.style.SUCCESS(

@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { userAPI } from '../services/api';
 import { getTheme, toggleTheme } from '../utils/theme';
 import { isAuthenticated } from '../utils/auth';
+import LibrarySelector from './LibrarySelector';
 import './Header.css';
 
-const Header = ({ onLogout, searchQuery, onSearch }) => {
+const Header = ({ onLogout, searchQuery, onSearch, selectedLibraries, onLibrariesChange }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [theme, setTheme] = useState(getTheme());
@@ -38,9 +41,12 @@ const Header = ({ onLogout, searchQuery, onSearch }) => {
     <header className="header">
       <div className="header-content">
         <div className="header-left">
-          <div className="quote">
-            "...книгу вообще нельзя читать – ее можно только перечитывать. В. Набоков."
-          </div>
+          <Link to="/" className="quote-link">
+            <div className="quote">
+              <span className="quote-line">"...книгу вообще нельзя читать –</span>
+              <span className="quote-line">ее можно только перечитывать." В. Набоков</span>
+            </div>
+          </Link>
         </div>
         <div className="header-center">
           <div className="search-bar-container">
@@ -55,6 +61,10 @@ const Header = ({ onLogout, searchQuery, onSearch }) => {
           </div>
         </div>
         <div className="header-right">
+          <LibrarySelector
+            selectedLibraries={selectedLibraries || []}
+            onLibrariesChange={onLibrariesChange}
+          />
           <button 
             className="theme-toggle-button"
             onClick={handleThemeToggle}
@@ -85,7 +95,7 @@ const Header = ({ onLogout, searchQuery, onSearch }) => {
                 className="dropdown-item"
                 onClick={() => {
                   setShowMenu(false);
-                  // TODO: перейти на страницу профиля
+                  navigate('/profile');
                 }}
               >
                 Моя страница

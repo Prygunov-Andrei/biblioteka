@@ -10,6 +10,11 @@ import './MainPage.css';
 const MainPage = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedHashtag, setSelectedHashtag] = useState(null);
+  const [selectedLibraries, setSelectedLibraries] = useState(() => {
+    // Загружаем из localStorage при инициализации
+    const saved = localStorage.getItem('selectedLibraries');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [categories, setCategories] = useState([]);
   const [hashtags, setHashtags] = useState([]);
   const [books, setBooks] = useState([]);
@@ -23,6 +28,15 @@ const MainPage = () => {
     recently_added: false,
   });
   const navigate = useNavigate();
+
+  // Сохраняем выбранные библиотеки в localStorage
+  useEffect(() => {
+    if (selectedLibraries.length > 0) {
+      localStorage.setItem('selectedLibraries', JSON.stringify(selectedLibraries));
+    } else {
+      localStorage.removeItem('selectedLibraries');
+    }
+  }, [selectedLibraries]);
 
   useEffect(() => {
     loadData();
@@ -38,7 +52,7 @@ const MainPage = () => {
 
   useEffect(() => {
     loadBooks();
-  }, [selectedCategory, selectedHashtag, searchQuery, filters]);
+  }, [selectedCategory, selectedHashtag, searchQuery, filters, selectedLibraries]);
 
   const loadData = async () => {
     try {
@@ -64,6 +78,7 @@ const MainPage = () => {
   const loadAllBooksForStats = async () => {
     try {
       // Загружаем все книги для статистики (с пагинацией, увеличиваем размер страницы)
+      // Загружаем без фильтра по библиотекам, чтобы иметь полную картину для подсчета
       let allBooksList = [];
       let page = 1;
       let hasMore = true;
@@ -89,6 +104,46 @@ const MainPage = () => {
     }
   };
 
+  // Вычисляем количество книг с учетом выбранных библиотек для категорий
+  const calculateCategoryBooksCount = (category) => {
+    if (selectedLibraries.length === 0) {
+      return 0;
+    }
+    
+    // Фильтруем книги по выбранным библиотекам
+    let filteredBooks = allBooks.filter(book => {
+      const bookLibraryId = book.library || book.library_id;
+      return bookLibraryId && selectedLibraries.includes(bookLibraryId);
+    });
+    
+    // Фильтруем по категории
+    if (category.subcategories && category.subcategories.length > 0) {
+      // Родительская категория - считаем книги из всех подкатегорий
+      const subcategoryIds = category.subcategories.map(sub => sub.id);
+      return filteredBooks.filter(book => {
+        const bookCategoryId = book.category || book.category_id;
+        return bookCategoryId === category.id || subcategoryIds.includes(bookCategoryId);
+      }).length;
+    } else {
+      // Обычная категория
+      return filteredBooks.filter(book => {
+        const bookCategoryId = book.category || book.category_id;
+        return bookCategoryId === category.id;
+      }).length;
+    }
+  };
+
+  // Общее количество книг с учетом выбранных библиотек
+  const getFilteredBooksCount = () => {
+    if (selectedLibraries.length === 0) {
+      return 0;
+    }
+    return allBooks.filter(book => {
+      const bookLibraryId = book.library || book.library_id;
+      return bookLibraryId && selectedLibraries.includes(bookLibraryId);
+    }).length;
+  };
+
   const calculateStats = () => {
     const stats = {
       status: {
@@ -103,19 +158,30 @@ const MainPage = () => {
       recently_added: 0,
     };
 
+    // Фильтруем книги по выбранным библиотекам
+    // Если не выбрана ни одна библиотека - возвращаем нулевые статистики
+    if (selectedLibraries.length === 0) {
+      return stats;
+    }
+    
+    let booksToCount = allBooks.filter(book => {
+      const bookLibraryId = book.library || book.library_id;
+      return bookLibraryId && selectedLibraries.includes(bookLibraryId);
+    });
+
     // Фильтруем книги по выбранной категории
-    const booksToCount = selectedCategory
-      ? allBooks.filter(book => {
-          // Проверяем все возможные варианты поля категории
-          const bookCategoryId = book.category || book.category_id;
-          // Если выбрана родительская категория с подкатегориями, считаем книги из всех её подкатегорий
-          if (selectedCategory.subcategories && selectedCategory.subcategories.length > 0) {
-            const subcategoryIds = selectedCategory.subcategories.map(sub => sub.id);
-            return bookCategoryId === selectedCategory.id || subcategoryIds.includes(bookCategoryId);
-          }
-          return bookCategoryId === selectedCategory.id;
-        })
-      : allBooks;
+    if (selectedCategory) {
+      booksToCount = booksToCount.filter(book => {
+        // Проверяем все возможные варианты поля категории
+        const bookCategoryId = book.category || book.category_id;
+        // Если выбрана родительская категория с подкатегориями, считаем книги из всех её подкатегорий
+        if (selectedCategory.subcategories && selectedCategory.subcategories.length > 0) {
+          const subcategoryIds = selectedCategory.subcategories.map(sub => sub.id);
+          return bookCategoryId === selectedCategory.id || subcategoryIds.includes(bookCategoryId);
+        }
+        return bookCategoryId === selectedCategory.id;
+      });
+    }
 
     booksToCount.forEach(book => {
       // Статусы
@@ -150,7 +216,17 @@ const MainPage = () => {
   const loadBooks = async () => {
     setLoading(true);
     try {
+      // Если не выбрана ни одна библиотека - не показываем книги
+      if (selectedLibraries.length === 0) {
+        setBooks([]);
+        setLoading(false);
+        return;
+      }
+      
       const params = {};
+      
+      // Фильтрация по выбранным библиотекам
+      params.libraries = selectedLibraries;
       
       if (selectedCategory) {
         // Если выбрана родительская категория с подкатегориями, фильтруем по всем
@@ -280,17 +356,20 @@ const MainPage = () => {
         onLogout={handleLogout}
         searchQuery={searchQuery}
         onSearch={handleSearch}
+        selectedLibraries={selectedLibraries}
+        onLibrariesChange={setSelectedLibraries}
       />
       <div className="main-content">
-        <Sidebar
-          categories={categories}
-          hashtags={hashtags}
-          selectedCategory={selectedCategory}
-          selectedHashtag={selectedHashtag}
-          onCategorySelect={handleCategorySelect}
-          onHashtagSelect={handleHashtagSelect}
-          totalBooksCount={allBooks.length}
-        />
+              <Sidebar
+                categories={categories}
+                hashtags={hashtags}
+                selectedCategory={selectedCategory}
+                selectedHashtag={selectedHashtag}
+                onCategorySelect={handleCategorySelect}
+                onHashtagSelect={handleHashtagSelect}
+                totalBooksCount={getFilteredBooksCount()}
+                calculateCategoryBooksCount={calculateCategoryBooksCount}
+              />
         <div className="content-area">
           <Filters
             filters={filters}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './Sidebar.css';
 
-const Sidebar = ({ categories, hashtags, selectedCategory, selectedHashtag, onCategorySelect, onHashtagSelect, totalBooksCount }) => {
+const Sidebar = ({ categories, hashtags, selectedCategory, selectedHashtag, onCategorySelect, onHashtagSelect, totalBooksCount, calculateCategoryBooksCount }) => {
   // Состояние для отслеживания раскрытых родительских категорий
   const [expandedCategories, setExpandedCategories] = useState(new Set());
 
@@ -71,31 +71,43 @@ const Sidebar = ({ categories, hashtags, selectedCategory, selectedHashtag, onCa
                       )}
                       <span className="category-name">{category.name}</span>
                     </div>
-                    {category.books_count !== undefined && (
+                    {calculateCategoryBooksCount ? (
+                      <span className="category-count">({calculateCategoryBooksCount(category)})</span>
+                    ) : category.books_count !== undefined ? (
                       <span className="category-count">({category.books_count})</span>
-                    )}
+                    ) : null}
                   </div>
-                  {hasSubcategories && isExpanded && (
-                    <ul className="subcategories-list">
-                      {category.subcategories.map((subcategory) => (
-                        <li
-                          key={subcategory.id}
-                          className={`subcategory-item ${
-                            isSubcategorySelected(subcategory) ? 'active' : ''
-                          }`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onCategorySelect(subcategory);
-                          }}
-                        >
-                          <span className="subcategory-name">{subcategory.name}</span>
-                          {subcategory.books_count !== undefined && (
-                            <span className="subcategory-count">({subcategory.books_count})</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                         {hasSubcategories && isExpanded && (
+                           <ul className="subcategories-list">
+                             {category.subcategories.map((subcategory) => {
+                               // Для подкатегорий тоже используем пересчет если доступен
+                               const subcategoryCount = calculateCategoryBooksCount 
+                                 ? calculateCategoryBooksCount({ 
+                                     id: subcategory.id, 
+                                     subcategories: [] 
+                                   })
+                                 : subcategory.books_count;
+                               
+                               return (
+                                 <li
+                                   key={subcategory.id}
+                                   className={`subcategory-item ${
+                                     isSubcategorySelected(subcategory) ? 'active' : ''
+                                   }`}
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     onCategorySelect(subcategory);
+                                   }}
+                                 >
+                                   <span className="subcategory-name">{subcategory.name}</span>
+                                   {subcategoryCount !== undefined && (
+                                     <span className="subcategory-count">({subcategoryCount})</span>
+                                   )}
+                                 </li>
+                               );
+                             })}
+                           </ul>
+                         )}
                 </li>
               );
             })}

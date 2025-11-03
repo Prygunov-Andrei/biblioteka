@@ -51,6 +51,7 @@ class TestDataFactory:
         self.hashtags = []
         self.user = None
         self.library = None
+        self.all_libraries = []  # Список всех библиотек для распределения книг
         
         # Список хэштегов для использования в книгах
         self.HASHTAGS_LIST = [
@@ -112,6 +113,93 @@ class TestDataFactory:
                     country='Россия',
                     description='Библиотека для тестирования'
                 )
+    
+    def create_multiple_users_and_libraries(self, num_users: int = 4, libraries_per_user: int = 2):
+        """
+        Создает несколько пользователей с библиотеками
+        
+        Args:
+            num_users: Количество пользователей для создания (включая уже существующих)
+            libraries_per_user: Количество библиотек на пользователя
+        """
+        print(f"\n👥 Создание пользователей и библиотек...")
+        print(f"   Пользователей: {num_users}, библиотек на пользователя: {libraries_per_user}\n")
+        
+        # Получаем существующих пользователей
+        existing_users = list(User.objects.all())
+        existing_count = len(existing_users)
+        
+        # Создаем недостающих пользователей
+        users_to_create = num_users - existing_count
+        if users_to_create > 0:
+            print(f"  Создание {users_to_create} новых пользователей...")
+            for i in range(users_to_create):
+                user_num = existing_count + i + 1
+                username = f'user_{user_num}'
+                email = f'user{user_num}@example.com'
+                
+                # Проверяем, что пользователь не существует
+                if not User.objects.filter(username=username).exists():
+                    user = User.objects.create_user(
+                        username=username,
+                        email=email,
+                        password='testpass123'
+                    )
+                    existing_users.append(user)
+                    print(f"    ✓ Создан пользователь: {username}")
+                else:
+                    user = User.objects.get(username=username)
+                    existing_users.append(user)
+                    print(f"    ✓ Использован существующий пользователь: {username}")
+        
+        # Ограничиваем список пользователей до num_users
+        users = existing_users[:num_users]
+        
+        # Создаем библиотеки для каждого пользователя
+        all_libraries = []
+        cities = ['Москва', 'Санкт-Петербург', 'Екатеринбург', 'Новосибирск', 'Казань', 'Нижний Новгород']
+        addresses = [
+            'ул. Ленина, д. 10',
+            'пр. Мира, д. 25',
+            'ул. Пушкина, д. 5',
+            'ул. Гагарина, д. 15',
+            'пр. Победы, д. 30',
+            'ул. Советская, д. 8',
+        ]
+        
+        print(f"\n  📚 Создание библиотек...")
+        for user_index, user in enumerate(users):
+            user_libraries = Library.objects.filter(owner=user)
+            
+            # Создаем недостающие библиотеки
+            libraries_to_create = libraries_per_user - user_libraries.count()
+            if libraries_to_create > 0:
+                for lib_index in range(libraries_to_create):
+                    city = cities[user_index % len(cities)]
+                    address = addresses[(user_index * libraries_per_user + lib_index) % len(addresses)]
+                    
+                    library = Library.objects.create(
+                        owner=user,
+                        name=f'Библиотека {user.username} #{lib_index + 1}',
+                        address=address,
+                        city=city,
+                        country='Россия',
+                        description=f'Библиотека пользователя {user.username}'
+                    )
+                    all_libraries.append(library)
+                    print(f"    ✓ Создана библиотека: {library.name} (владелец: {user.username})")
+            else:
+                # Добавляем существующие библиотеки
+                all_libraries.extend(list(user_libraries))
+                print(f"    ✓ Использованы существующие библиотеки пользователя {user.username}")
+        
+        self.all_libraries = all_libraries
+        print(f"\n  ✅ Итого библиотек: {len(all_libraries)}")
+        
+        # Устанавливаем первого пользователя как текущего (для совместимости)
+        if users:
+            self.user = users[0]
+            self.library = Library.objects.filter(owner=self.user).first()
     
     def load_data(self):
         """Загружает данные из JSON файлов"""
@@ -333,33 +421,56 @@ class TestDataFactory:
         
         return authors_list, publishers_list
     
-    def generate_books_for_all_categories(self, books_per_category: int = 3):
+    def generate_books_for_all_categories(self, books_per_category: int = 3, distribute_to_all_libraries: bool = True):
         """
         Генерирует книги для всех категорий
         
         Args:
             books_per_category: Количество книг на категорию
+            distribute_to_all_libraries: Если True, распределяет книги равномерно между всеми библиотеками
         """
         if not self.categories:
             self.load_data()
         
-        if not self.user or not self.library:
-            raise ValueError("Необходимо вызвать ensure_user_and_library() перед генерацией")
+        # Проверяем наличие библиотек
+        if distribute_to_all_libraries and self.all_libraries:
+            libraries_to_use = self.all_libraries
+            print(f"\n📚 Распределение книг между {len(libraries_to_use)} библиотеками...")
+        else:
+            if not self.user or not self.library:
+                raise ValueError("Необходимо вызвать ensure_user_and_library() перед генерацией")
+            libraries_to_use = [self.library]
         
         if not self.authors or not self.publishers:
             self.ensure_authors_and_publishers_in_db()
         
-        # Убеждаемся, что хэштеги созданы
+        # Убеждаемся, что хэштеги созданы для всех пользователей
         if not self.hashtags:
+            # Создаем хэштеги для всех уникальных пользователей
+            unique_users = list(set([lib.owner for lib in libraries_to_use]))
+            first_user = unique_users[0] if unique_users else None
+            
+            # Временно устанавливаем пользователя для создания хэштегов
+            old_user = self.user
+            self.user = first_user if first_user else self.user
             self._ensure_hashtags_in_db()
+            # Восстанавливаем старого пользователя
+            self.user = old_user if old_user else first_user
         
         total_books = len(self.categories) * books_per_category
         print(f"\n📖 Генерация {total_books} книг для {len(self.categories)} категорий...")
-        print(f"   ({books_per_category} книг на категорию)\n")
+        print(f"   ({books_per_category} книг на категорию)")
+        if distribute_to_all_libraries:
+            books_per_library = total_books / len(libraries_to_use) if libraries_to_use else 0
+            print(f"   (~{books_per_library:.1f} книг на библиотеку)\n")
+        else:
+            print()
         
         # Распределяем ресурсы
         authors_list, publishers_list = self._distribute_resources(total_books)
         
+        # Распределяем библиотеки для каждой книги
+        library_index = 0
         book_index = 0
         created_count = 0
         
@@ -370,6 +481,11 @@ class TestDataFactory:
                 # Получаем назначенных авторов и издательство
                 book_authors = authors_list[book_index]
                 publisher = publishers_list[book_index]
+                
+                # Выбираем библиотеку (равномерное распределение)
+                selected_library = libraries_to_use[library_index % len(libraries_to_use)]
+                library_owner = selected_library.owner
+                library_index += 1
                 book_index += 1
                 
                 try:
@@ -379,8 +495,8 @@ class TestDataFactory:
                             category=category,
                             authors=book_authors,
                             publisher=publisher,
-                            library=self.library,
-                            owner=self.user,
+                            library=selected_library,
+                            owner=library_owner,
                             category_name=category.name
                         )
                         
@@ -461,7 +577,7 @@ class TestDataFactory:
                                 
                                 BookReview.objects.create(
                                     book=book,
-                                    user=self.user,
+                                    user=library_owner,
                                     rating=rating,
                                     review_text=review_text
                                 )

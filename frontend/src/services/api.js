@@ -177,7 +177,22 @@ export const hashtagsAPI = {
 // API методы для книг
 export const booksAPI = {
   getAll: async (params = {}) => {
-    const response = await apiClient.get('/books/', { params });
+    // Для множественных библиотек используем getlist
+    const requestParams = new URLSearchParams();
+    
+    // Обрабатываем все параметры
+    Object.keys(params).forEach(key => {
+      if (key === 'libraries' && Array.isArray(params[key])) {
+        // Для библиотек добавляем каждую отдельно
+        params[key].forEach(libId => {
+          requestParams.append('libraries', libId);
+        });
+      } else {
+        requestParams.append(key, params[key]);
+      }
+    });
+    
+    const response = await apiClient.get(`/books/?${requestParams.toString()}`);
     return response.data;
   },
   getById: async (id) => {
@@ -196,6 +211,47 @@ export const booksAPI = {
 export const userAPI = {
   getProfile: async () => {
     const response = await apiClient.get('/user-profiles/me/');
+    return response.data;
+  },
+  updateProfile: async (profileData) => {
+    const formData = new FormData();
+    if (profileData.full_name !== undefined) formData.append('full_name', profileData.full_name);
+    if (profileData.description !== undefined) formData.append('description', profileData.description);
+    if (profileData.photo) formData.append('photo', profileData.photo);
+    
+    const response = await apiClient.patch('/user-profiles/me/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+};
+
+// API методы для библиотек
+export const librariesAPI = {
+  getAll: async () => {
+    const response = await apiClient.get('/libraries/');
+    return response.data;
+  },
+  getMyLibraries: async () => {
+    const response = await apiClient.get('/libraries/my_libraries/');
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await apiClient.get(`/libraries/${id}/`);
+    return response.data;
+  },
+  create: async (libraryData) => {
+    const response = await apiClient.post('/libraries/', libraryData);
+    return response.data;
+  },
+  update: async (id, libraryData) => {
+    const response = await apiClient.patch(`/libraries/${id}/`, libraryData);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await apiClient.delete(`/libraries/${id}/`);
     return response.data;
   },
 };

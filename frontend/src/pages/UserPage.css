@@ -1,0 +1,459 @@
+.user-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  transition: background-color 0.3s;
+}
+
+.dark-theme .user-page {
+  background: #1a1a1a;
+}
+
+.user-page-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  margin-top: 80px;
+}
+
+.user-page-header {
+  margin-bottom: 40px;
+}
+
+.user-page-header h1 {
+  margin: 0;
+  font-size: 32px;
+  color: #333;
+  transition: color 0.3s;
+}
+
+.dark-theme .user-page-header h1 {
+  color: #fff;
+}
+
+.user-page-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+@media (max-width: 968px) {
+  .user-page-sections {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Профиль */
+.profile-section,
+.libraries-section {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.dark-theme .profile-section,
+.dark-theme .libraries-section {
+  background: #2a2a2a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0;
+  transition: border-color 0.3s;
+}
+
+.dark-theme .section-header {
+  border-bottom-color: #444;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+  transition: color 0.3s;
+}
+
+.dark-theme .section-header h2 {
+  color: #fff;
+}
+
+.edit-button,
+.add-button {
+  padding: 10px 20px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.edit-button:hover,
+.add-button:hover {
+  background: #5568d3;
+}
+
+/* Профиль - просмотр */
+.profile-view {
+  display: flex;
+  gap: 25px;
+  align-items: flex-start;
+}
+
+.profile-photo {
+  flex-shrink: 0;
+}
+
+.profile-photo img,
+.photo-placeholder-large {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.photo-placeholder-large {
+  background: #667eea;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: bold;
+}
+
+.profile-info h3 {
+  margin: 0 0 5px 0;
+  font-size: 24px;
+  color: #333;
+  transition: color 0.3s;
+}
+
+.dark-theme .profile-info h3 {
+  color: #fff;
+}
+
+.profile-info .username {
+  margin: 0 0 15px 0;
+  color: #999;
+  font-size: 14px;
+  transition: color 0.3s;
+}
+
+.dark-theme .profile-info .username {
+  color: #666;
+}
+
+.profile-info .description {
+  margin: 0;
+  color: #666;
+  line-height: 1.6;
+  transition: color 0.3s;
+}
+
+.dark-theme .profile-info .description {
+  color: #ccc;
+}
+
+/* Формы */
+.profile-edit-form,
+.create-library-form {
+  margin-top: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+  transition: color 0.3s;
+}
+
+.dark-theme .form-group label {
+  color: #ddd;
+}
+
+.form-group input[type="text"],
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.3s, background-color 0.3s, color 0.3s;
+}
+
+.dark-theme .form-group input[type="text"],
+.dark-theme .form-group textarea {
+  background: #1a1a1a;
+  border-color: #444;
+  color: #fff;
+}
+
+.form-group input[type="text"]:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.photo-upload {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.photo-preview {
+  flex-shrink: 0;
+}
+
+.photo-preview img,
+.photo-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.photo-placeholder {
+  background: #667eea;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+}
+
+.file-input {
+  padding: 8px;
+  font-size: 14px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+.save-button,
+.cancel-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.save-button {
+  background: #667eea;
+  color: white;
+}
+
+.save-button:hover:not(:disabled) {
+  background: #5568d3;
+}
+
+.save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancel-button {
+  background: #e0e0e0;
+  color: #333;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.dark-theme .cancel-button {
+  background: #444;
+  color: #ddd;
+}
+
+.cancel-button:hover:not(:disabled) {
+  background: #ccc;
+}
+
+.dark-theme .cancel-button:hover:not(:disabled) {
+  background: #555;
+}
+
+/* Библиотеки */
+.create-library-form {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  transition: background-color 0.3s;
+}
+
+.dark-theme .create-library-form {
+  background: #222;
+}
+
+.create-library-form h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  color: #333;
+  transition: color 0.3s;
+}
+
+.dark-theme .create-library-form h3 {
+  color: #fff;
+}
+
+.libraries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.library-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  transition: background-color 0.3s;
+}
+
+.dark-theme .library-card {
+  background: #222;
+}
+
+.library-info {
+  flex: 1;
+}
+
+.library-info h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: #333;
+  transition: color 0.3s;
+}
+
+.dark-theme .library-info h3 {
+  color: #fff;
+}
+
+.library-address {
+  margin: 5px 0;
+  color: #666;
+  font-size: 14px;
+  transition: color 0.3s;
+}
+
+.dark-theme .library-address {
+  color: #999;
+}
+
+.library-location {
+  margin: 5px 0;
+  color: #999;
+  font-size: 13px;
+  transition: color 0.3s;
+}
+
+.dark-theme .library-location {
+  color: #666;
+}
+
+.library-description {
+  margin: 10px 0;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: color 0.3s;
+}
+
+.dark-theme .library-description {
+  color: #999;
+}
+
+.library-stats {
+  margin: 10px 0 0 0;
+  color: #667eea;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.library-actions {
+  flex-shrink: 0;
+  margin-left: 20px;
+}
+
+.delete-button {
+  padding: 8px 16px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.delete-button:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.delete-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  transition: color 0.3s;
+}
+
+.dark-theme .empty-state {
+  color: #666;
+}
+
+.empty-state .hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #bbb;
+  transition: color 0.3s;
+}
+
+.dark-theme .empty-state .hint {
+  color: #555;
+}
+
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  font-size: 18px;
+  color: #666;
+  transition: color 0.3s;
+}
+
+.dark-theme .loading {
+  color: #999;
+}
+

@@ -98,14 +98,16 @@ class BookViewSet(viewsets.ModelViewSet):
             except ValueError:
                 queryset = queryset.filter(owner__username__icontains=owner)
         
-        # Фильтрация по библиотеке
-        library = self.request.query_params.get('library')
-        if library:
+        # Фильтрация по библиотеке (поддержка множественного выбора)
+        libraries = self.request.query_params.getlist('libraries') or self.request.query_params.getlist('library')
+        if libraries:
             try:
-                library_id = int(library)
-                queryset = queryset.filter(library_id=library_id)
-            except ValueError:
-                queryset = queryset.filter(library__name__icontains=library)
+                library_ids = [int(lib_id) for lib_id in libraries if lib_id]
+                if library_ids:
+                    queryset = queryset.filter(library_id__in=library_ids)
+            except (ValueError, TypeError):
+                # Если не удалось распарсить как ID, пробуем фильтровать по имени
+                queryset = queryset.filter(library__name__in=libraries).distinct()
         
         # Фильтрация по статусу
         status_filter = self.request.query_params.get('status')
