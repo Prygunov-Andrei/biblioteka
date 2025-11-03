@@ -11,7 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
-from ..models import Book, BookPage, BookImage, BookElectronic
+from ..models import Book, BookPage, BookImage, BookElectronic, Category
 from ..serializers import (
     BookSerializer, BookDetailSerializer,
     BookCreateSerializer, BookUpdateSerializer,
@@ -19,6 +19,7 @@ from ..serializers import (
     BookElectronicSerializer, HashtagSerializer, LibrarySerializer
 )
 from ..permissions import IsOwnerOrReadOnly
+from rest_framework.permissions import AllowAny
 from ..services.document_processor import process_document
 from ..services.hashtag_service import HashtagService
 from ..services.transfer_service import TransferService
@@ -35,7 +36,18 @@ class BookViewSet(viewsets.ModelViewSet):
         'hashtags', 'reviews'
     )
     parser_classes = (MultiPartParser, FormParser, JSONParser)
+    # Разрешаем чтение всем, редактирование только владельцам
     permission_classes = [IsOwnerOrReadOnly]
+    
+    def get_permissions(self):
+        """
+        Переопределяем права доступа для разных действий.
+        Для list и retrieve - AllowAny (все могут просматривать)
+        Для остальных действий - IsOwnerOrReadOnly (только владелец может редактировать)
+        """
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsOwnerOrReadOnly()]
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -65,8 +77,16 @@ class BookViewSet(viewsets.ModelViewSet):
         if category:
             try:
                 category_id = int(category)
-                queryset = queryset.filter(category_id=category_id)
-            except ValueError:
+                category_obj = Category.objects.get(id=category_id)
+                # Если это родительская категория, включаем все её подкатегории
+                if category_obj.subcategories.exists():
+                    subcategory_ids = list(category_obj.subcategories.values_list('id', flat=True))
+                    subcategory_ids.append(category_obj.id)  # Включаем и саму родительскую
+                    queryset = queryset.filter(category_id__in=subcategory_ids)
+                else:
+                    queryset = queryset.filter(category_id=category_id)
+            except (ValueError, Category.DoesNotExist):
+                # Если не ID, пробуем slug
                 queryset = queryset.filter(category__slug=category)
         
         # Фильтрация по владельцу

@@ -14,6 +14,9 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
+    // Добавляем токен только если он есть
+    // Для публичных эндпоинтов токен не обязателен, но если он есть - добавим
+    // OptionalJWTAuthentication на сервере проигнорирует невалидные токены
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -24,15 +27,66 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Публичные эндпоинты, которые доступны без токена
+const PUBLIC_ENDPOINTS = [
+  '/categories/',
+  '/categories/tree/',
+  '/hashtags/',
+  '/books/',  // GET запросы на список книг
+];
+
+// Проверяем, является ли эндпоинт публичным
+// Учитываем, что URL может содержать query параметры, поэтому проверяем начало пути
+const isPublicEndpoint = (url) => {
+  // Извлекаем путь из URL (убираем query параметры)
+  const path = url.split('?')[0];
+  return PUBLIC_ENDPOINTS.some(endpoint => {
+    const cleanEndpoint = endpoint.replace(/\/$/, ''); // Убираем trailing slash
+    const cleanPath = path.replace(/\/$/, '');
+    return cleanPath.includes(cleanEndpoint) || cleanPath.endsWith(cleanEndpoint);
+  });
+};
+
 // Интерцептор для обработки ошибок авторизации
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const url = originalRequest.url || '';
 
     // Если ошибка 401 и мы еще не пытались обновить токен
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+
+      // Если это публичный эндпоинт и токен невалидный, пробуем запрос без токена
+      if (isPublicEndpoint(url)) {
+        // Создаем новый конфиг без токена
+        const cleanHeaders = { ...originalRequest.headers };
+        delete cleanHeaders.Authorization;
+        
+        // Формируем полный URL для запроса
+        let requestUrl = originalRequest.url || url;
+        // Если URL относительный, добавляем baseURL
+        if (!requestUrl.startsWith('http')) {
+          const baseUrl = originalRequest.baseURL || API_BASE_URL;
+          requestUrl = `${baseUrl}${requestUrl.startsWith('/') ? '' : '/'}${requestUrl}`;
+        }
+        
+        // Используем axios напрямую, чтобы обойти интерцептор запроса
+        try {
+          const response = await axios({
+            method: originalRequest.method || 'get',
+            url: requestUrl,
+            params: originalRequest.params,
+            data: originalRequest.data,
+            headers: cleanHeaders,
+          });
+          return response;
+        } catch (retryError) {
+          // Если и без токена не работает, возвращаем ошибку
+          return Promise.reject(retryError);
+        }
+      }
 
       try {
         const refreshToken = localStorage.getItem('refresh_token');
@@ -44,12 +98,26 @@ apiClient.interceptors.response.use(
           localStorage.setItem('access_token', access);
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return apiClient(originalRequest);
+        } else {
+          // Если нет refresh токена и это не публичный эндпоинт, перенаправляем на логин
+          if (!isPublicEndpoint(url)) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login';
+            }
+          }
+          return Promise.reject(error);
         }
       } catch (refreshError) {
-        // Если не удалось обновить токен, удаляем токены и перенаправляем на авторизацию
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+        // Если не удалось обновить токен и это не публичный эндпоинт
+        if (!isPublicEndpoint(url)) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        }
         return Promise.reject(refreshError);
       }
     }
@@ -82,6 +150,11 @@ export const categoriesAPI = {
     const response = await apiClient.get('/categories/');
     return response.data;
   },
+  getTree: async () => {
+    // Возвращает дерево категорий (родительские с подкатегориями)
+    const response = await apiClient.get('/categories/tree/');
+    return response.data;
+  },
   getBySlug: async (slug) => {
     const response = await apiClient.get(`/categories/${slug}/`);
     return response.data;
@@ -92,6 +165,11 @@ export const categoriesAPI = {
 export const hashtagsAPI = {
   getAll: async (params = {}) => {
     const response = await apiClient.get('/hashtags/', { params });
+    return response.data;
+  },
+  getByCategory: async (categoryId = null) => {
+    const params = categoryId ? { category_id: categoryId } : {};
+    const response = await apiClient.get('/hashtags/by_category/', { params });
     return response.data;
   },
 };

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { userAPI } from '../services/api';
 import { getTheme, toggleTheme } from '../utils/theme';
+import { isAuthenticated } from '../utils/auth';
 import './Header.css';
 
 const Header = ({ onLogout, searchQuery, onSearch }) => {
@@ -9,7 +10,10 @@ const Header = ({ onLogout, searchQuery, onSearch }) => {
   const [theme, setTheme] = useState(getTheme());
 
   useEffect(() => {
-    loadUserProfile();
+    // Загружаем профиль только если пользователь авторизован
+    if (isAuthenticated()) {
+      loadUserProfile();
+    }
   }, []);
 
   const loadUserProfile = async () => {

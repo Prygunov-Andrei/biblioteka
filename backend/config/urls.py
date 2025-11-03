@@ -1,6 +1,7 @@
 """
 URL маршруты
 """
+from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
@@ -39,6 +40,8 @@ router.register(r'hashtags', HashtagViewSet, basename='hashtag')
 router.register(r'book-reviews', BookReviewViewSet, basename='book-review')
 
 urlpatterns = [
+    # Django Admin
+    path('admin/', admin.site.urls),
     # JWT аутентификация (перед роутером для приоритета)
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

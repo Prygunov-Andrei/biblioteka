@@ -9,6 +9,7 @@ import './MainPage.css';
 
 const MainPage = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedHashtag, setSelectedHashtag] = useState(null);
   const [categories, setCategories] = useState([]);
   const [hashtags, setHashtags] = useState([]);
   const [books, setBooks] = useState([]);
@@ -32,20 +33,31 @@ const MainPage = () => {
   }, []);
 
   useEffect(() => {
+    loadHashtags();
+  }, [selectedCategory]);
+
+  useEffect(() => {
     loadBooks();
-  }, [selectedCategory, searchQuery, filters]);
+  }, [selectedCategory, selectedHashtag, searchQuery, filters]);
 
   const loadData = async () => {
     try {
-      const [categoriesData, hashtagsData] = await Promise.all([
-        categoriesAPI.getAll(),
-        hashtagsAPI.getAll(),
-      ]);
+      const categoriesData = await categoriesAPI.getTree();
       // Обработка пагинации: если есть results, используем их, иначе весь ответ
       setCategories(Array.isArray(categoriesData) ? categoriesData : (categoriesData.results || []));
-      setHashtags(Array.isArray(hashtagsData) ? hashtagsData : (hashtagsData.results || []));
     } catch (error) {
       console.error('Ошибка загрузки данных:', error);
+    }
+  };
+
+  const loadHashtags = async () => {
+    try {
+      const categoryId = selectedCategory ? selectedCategory.id : null;
+      const data = await hashtagsAPI.getByCategory(categoryId);
+      setHashtags(data.hashtags || []);
+    } catch (error) {
+      console.error('Ошибка загрузки хэштегов:', error);
+      setHashtags([]);
     }
   };
 
@@ -96,6 +108,11 @@ const MainPage = () => {
       ? allBooks.filter(book => {
           // Проверяем все возможные варианты поля категории
           const bookCategoryId = book.category || book.category_id;
+          // Если выбрана родительская категория с подкатегориями, считаем книги из всех её подкатегорий
+          if (selectedCategory.subcategories && selectedCategory.subcategories.length > 0) {
+            const subcategoryIds = selectedCategory.subcategories.map(sub => sub.id);
+            return bookCategoryId === selectedCategory.id || subcategoryIds.includes(bookCategoryId);
+          }
           return bookCategoryId === selectedCategory.id;
         })
       : allBooks;
@@ -136,7 +153,16 @@ const MainPage = () => {
       const params = {};
       
       if (selectedCategory) {
-        params.category = selectedCategory.id;
+        // Если выбрана родительская категория с подкатегориями, фильтруем по всем
+        if (selectedCategory.subcategories && selectedCategory.subcategories.length > 0) {
+          // Фильтруем по родительской категории или её подкатегориям
+          const categoryIds = [selectedCategory.id, ...selectedCategory.subcategories.map(sub => sub.id)];
+          // API может не поддерживать множественный фильтр, используем фильтр по родительской
+          // или можно сделать несколько запросов и объединить
+          params.category = selectedCategory.id;
+        } else {
+          params.category = selectedCategory.id;
+        }
       }
       
       if (searchQuery) {
@@ -145,6 +171,10 @@ const MainPage = () => {
       
       if (filters.status) {
         params.status = filters.status;
+      }
+
+      if (selectedHashtag) {
+        // Фильтрация по хэштегу будет на клиенте, так как API может не поддерживать это напрямую
       }
       
       if (filters.has_reviews) {
@@ -197,6 +227,13 @@ const MainPage = () => {
           return createdDate >= sevenDaysAgo;
         });
       }
+
+      // Фильтрация по хэштегу
+      if (selectedHashtag) {
+        booksList = booksList.filter(book => {
+          return book.hashtags && book.hashtags.some(ht => ht.id === selectedHashtag.id);
+        });
+      }
       
       setBooks(booksList);
     } catch (error) {
@@ -208,6 +245,11 @@ const MainPage = () => {
 
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
+    setSelectedHashtag(null); // Сбрасываем выбранный хэштег при смене категории
+  };
+
+  const handleHashtagSelect = (hashtag) => {
+    setSelectedHashtag(hashtag);
   };
 
   const handleSearch = (query) => {
@@ -223,7 +265,8 @@ const MainPage = () => {
 
   const handleLogout = () => {
     authAPI.logout();
-    navigate('/login');
+    // Используем window.location для принудительного перехода, чтобы избежать проблем с кэшированием состояния
+    window.location.href = '/login';
   };
 
   const handleAddBook = () => {
@@ -243,7 +286,10 @@ const MainPage = () => {
           categories={categories}
           hashtags={hashtags}
           selectedCategory={selectedCategory}
+          selectedHashtag={selectedHashtag}
           onCategorySelect={handleCategorySelect}
+          onHashtagSelect={handleHashtagSelect}
+          totalBooksCount={allBooks.length}
         />
         <div className="content-area">
           <Filters

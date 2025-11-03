@@ -216,6 +216,15 @@ class BookReview(models.Model):
 
 class Category(models.Model):
     """Категория книг"""
+    parent_category = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='subcategories',
+        verbose_name='Родительская категория',
+        help_text='Родительская категория (если категория является подкатегорией)'
+    )
     code = models.CharField('Код', max_length=20, unique=True, default='', help_text='Буквенный код категории')
     name = models.CharField('Название', max_length=200)
     slug = models.SlugField('Slug', unique=True)
@@ -230,6 +239,11 @@ class Category(models.Model):
     
     def __str__(self):
         return self.name
+    
+    @property
+    def is_parent(self):
+        """Возвращает True, если категория является родительской (имеет подкатегории)"""
+        return self.subcategories.exists()
 
 
 class Author(models.Model):

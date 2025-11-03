@@ -100,13 +100,63 @@ class BookReviewSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     """Сериализатор категории"""
     books_count = serializers.SerializerMethodField()
+    subcategories = serializers.SerializerMethodField()
+    is_parent = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = Category
-        fields = ['id', 'code', 'name', 'slug', 'icon', 'order', 'books_count']
+        fields = [
+            'id', 'code', 'name', 'slug', 'icon', 'order', 
+            'books_count', 'parent_category', 'subcategories', 'is_parent'
+        ]
     
     def get_books_count(self, obj):
-        return obj.books.count()
+        """Подсчитывает книги включая подкатегории"""
+        count = obj.books.count()
+        # Добавляем книги из всех подкатегорий
+        for subcategory in obj.subcategories.all():
+            count += subcategory.books.count()
+        return count
+    
+    def get_subcategories(self, obj):
+        """Возвращает подкатегории"""
+        subcategories = obj.subcategories.all().order_by('order', 'name')
+        return CategorySerializer(subcategories, many=True).data
+
+
+class CategoryTreeSerializer(serializers.ModelSerializer):
+    """Сериализатор для дерева категорий (только родительские с подкатегориями)"""
+    subcategories = serializers.SerializerMethodField()
+    books_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Category
+        fields = ['id', 'code', 'name', 'slug', 'icon', 'order', 'subcategories', 'books_count']
+    
+    def get_subcategories(self, obj):
+        """Возвращает подкатегории"""
+        subcategories = obj.subcategories.all().order_by('order', 'name')
+        # Используем простой сериализатор для подкатегорий (без вложенности)
+        return [
+            {
+                'id': sub.id,
+                'code': sub.code,
+                'name': sub.name,
+                'slug': sub.slug,
+                'icon': sub.icon,
+                'order': sub.order,
+                'books_count': sub.books.count()
+            }
+            for sub in subcategories
+        ]
+    
+    def get_books_count(self, obj):
+        """Подсчитывает книги включая подкатегории"""
+        count = obj.books.count()
+        # Добавляем книги из всех подкатегорий
+        for subcategory in obj.subcategories.all():
+            count += subcategory.books.count()
+        return count
 
 
 class AuthorSerializer(serializers.ModelSerializer):

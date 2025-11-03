@@ -4,6 +4,7 @@ ViewSet для профилей пользователей
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from ..models import UserProfile
 from ..serializers import UserProfileSerializer
@@ -13,7 +14,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     """API для профилей пользователей"""
     queryset = UserProfile.objects.select_related('user')
     serializer_class = UserProfileSerializer
-    permission_classes = []  # Настроим позже
+    permission_classes = [IsAuthenticated]  # Профиль доступен только авторизованным
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     
     def get_queryset(self):

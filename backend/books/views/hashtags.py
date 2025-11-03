@@ -2,8 +2,11 @@
 ViewSet для хэштегов
 """
 from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from ..models import Hashtag
+from rest_framework.permissions import AllowAny
+from django.db.models import Count, Q
+from ..models import Hashtag, Book, Category
 from ..serializers import HashtagSerializer
 from ..services.hashtag_service import HashtagService
 
@@ -13,7 +16,7 @@ class HashtagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Hashtag.objects.select_related('creator').prefetch_related('books')
     serializer_class = HashtagSerializer
     lookup_field = 'slug'
-    permission_classes = []  # Чтение для всех
+    permission_classes = [AllowAny]  # Чтение для всех
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -33,6 +36,67 @@ class HashtagViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(name__icontains=search)
         
         return queryset
+    
+    @action(detail=False, methods=['get'])
+    def by_category(self, request):
+        """
+        Возвращает хэштеги с частотой упоминания для выбранной категории
+        
+        Query params:
+            category_id - ID категории (если не указан, используются все категории)
+        """
+        category_id = request.query_params.get('category_id')
+        
+        # Базовый queryset для книг
+        books_queryset = Book.objects.all()
+        
+        if category_id:
+            try:
+                category = Category.objects.get(id=category_id)
+                # Если категория родительская, включаем её подкатегории
+                if category.subcategories.exists():
+                    subcategory_ids = list(category.subcategories.values_list('id', flat=True))
+                    subcategory_ids.append(category.id)
+                    books_queryset = books_queryset.filter(category_id__in=subcategory_ids)
+                else:
+                    books_queryset = books_queryset.filter(category_id=category_id)
+            except Category.DoesNotExist:
+                return Response(
+                    {'error': 'Категория не найдена'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        # Получаем хэштеги с подсчетом частоты для книг в категории
+        hashtags = Hashtag.objects.filter(
+            books__in=books_queryset
+        ).annotate(
+            count=Count('books', filter=Q(books__in=books_queryset))
+        ).distinct().order_by('-count', 'name')
+        
+        # Формируем ответ с частотой
+        result = []
+        max_count = 0
+        min_count = float('inf')
+        
+        for hashtag in hashtags:
+            count = hashtag.count
+            max_count = max(max_count, count)
+            min_count = min(min_count, count)
+            result.append({
+                'id': hashtag.id,
+                'name': hashtag.name,
+                'slug': hashtag.slug,
+                'count': count,
+            })
+        
+        # Добавляем информацию о диапазоне для расчета размера шрифта
+        response_data = {
+            'hashtags': result,
+            'max_count': max_count if max_count > 0 else 1,
+            'min_count': min_count if min_count != float('inf') else 1,
+        }
+        
+        return Response(response_data)
     
     def create(self, request, *args, **kwargs):
         """Создать новый хэштег"""

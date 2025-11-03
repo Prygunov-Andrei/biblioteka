@@ -7,11 +7,11 @@ from rest_framework import permissions
 class IsOwnerOrReadOnly(permissions.BasePermission):
     """Только владелец может редактировать книгу"""
     def has_object_permission(self, request, view, obj):
-        # Чтение разрешено всем
+        # Чтение разрешено всем (включая неавторизованных)
         if request.method in permissions.SAFE_METHODS:
             return True
-        # Редактирование только владельцу
-        return obj.owner == request.user
+        # Редактирование только авторизованным владельцам
+        return request.user.is_authenticated and obj.owner == request.user
 
 
 class IsLibraryOwner(permissions.BasePermission):

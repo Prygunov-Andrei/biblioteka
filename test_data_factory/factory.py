@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.files import File
 
-from books.models import Category, Author, Publisher, Book, BookAuthor, BookImage, BookReview, Library
+from books.models import Category, Author, Publisher, Book, BookAuthor, BookImage, BookReview, Library, Hashtag
 
 # Добавляем путь к фабрике для импорта
 factory_path = Path(__file__).parent
@@ -48,8 +48,33 @@ class TestDataFactory:
         self.categories = None
         self.authors = []
         self.publishers = []
+        self.hashtags = []
         self.user = None
         self.library = None
+        
+        # Список хэштегов для использования в книгах
+        self.HASHTAGS_LIST = [
+            'классика',
+            'фантастика',
+            'детектив',
+            'роман',
+            'история',
+            'биография',
+            'поэзия',
+            'драма',
+            'комедия',
+            'триллер',
+            'ужасы',
+            'приключения',
+            'философия',
+            'наука',
+            'психология',
+            'путешествия',
+            'любовный_роман',
+            'военный_роман',
+            'современная_литература',
+            'антиквариат',
+        ]
     
     def ensure_user_and_library(self, user_id: Optional[int] = None, library_id: Optional[int] = None):
         """
@@ -97,8 +122,13 @@ class TestDataFactory:
         print(f"  ✓ Загружено издательств: {len(self.publishers_data)}")
         
         # Загружаем категории
+        # Загружаем все категории, включая подкатегории
+        # Фабрика будет генерировать книги как для родительских, так и для подкатегорий
         self.categories = list(Category.objects.all().order_by('order', 'name'))
         print(f"  ✓ Загружено категорий: {len(self.categories)}")
+        
+        # Создаем хэштеги в БД, если их нет
+        self._ensure_hashtags_in_db()
     
     def ensure_authors_and_publishers_in_db(self) -> tuple[list, list]:
         """
@@ -155,6 +185,62 @@ class TestDataFactory:
         print(f"  ✓ Уже существует: {existing_publishers}")
         
         return self.authors, self.publishers
+    
+    def _ensure_hashtags_in_db(self):
+        """Создает хэштеги в БД, если их нет"""
+        if not self.user:
+            raise ValueError("Необходимо сначала создать пользователя (ensure_user_and_library)")
+        
+        print("\n🏷️  Проверка хэштегов в БД...")
+        created_hashtags = 0
+        existing_hashtags = 0
+        
+        for hashtag_name in self.HASHTAGS_LIST:
+            # Создаем slug из названия
+            from django.utils.text import slugify
+            base_slug = slugify(hashtag_name)
+            
+            # Убеждаемся что slug не пустой
+            if not base_slug:
+                base_slug = f"hashtag-{hashtag_name[:10]}"
+                base_slug = slugify(base_slug)
+            
+            # Проверяем уникальность slug и при необходимости добавляем суффикс
+            slug = base_slug
+            counter = 1
+            while Hashtag.objects.filter(slug=slug).exclude(name=hashtag_name, creator=self.user).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            
+            # Проверяем уникальность по name и creator
+            hashtag, created = Hashtag.objects.get_or_create(
+                name=hashtag_name,
+                creator=self.user,
+                defaults={
+                    'slug': slug,
+                }
+            )
+            
+            # Если хэштег уже существует, обновляем slug если он пустой или дублируется
+            if not created and (not hashtag.slug or Hashtag.objects.filter(slug=hashtag.slug).exclude(id=hashtag.id).exists()):
+                if not hashtag.slug or Hashtag.objects.filter(slug=hashtag.slug).exclude(id=hashtag.id).exists():
+                    # Ищем уникальный slug
+                    new_slug = base_slug
+                    counter = 1
+                    while Hashtag.objects.filter(slug=new_slug).exclude(id=hashtag.id).exists():
+                        new_slug = f"{base_slug}-{counter}"
+                        counter += 1
+                    hashtag.slug = new_slug
+                    hashtag.save()
+            
+            if created:
+                created_hashtags += 1
+            else:
+                existing_hashtags += 1
+            self.hashtags.append(hashtag)
+        
+        print(f"  ✓ Создано хэштегов: {created_hashtags}")
+        print(f"  ✓ Уже существует: {existing_hashtags}")
     
     def _distribute_resources(self, total_books: int) -> tuple[list, list]:
         """
@@ -263,6 +349,10 @@ class TestDataFactory:
         if not self.authors or not self.publishers:
             self.ensure_authors_and_publishers_in_db()
         
+        # Убеждаемся, что хэштеги созданы
+        if not self.hashtags:
+            self._ensure_hashtags_in_db()
+        
         total_books = len(self.categories) * books_per_category
         print(f"\n📖 Генерация {total_books} книг для {len(self.categories)} категорий...")
         print(f"   ({books_per_category} книг на категорию)\n")
@@ -329,6 +419,22 @@ class TestDataFactory:
                             
                         except Exception as e:
                             print(f"    ⚠️  Ошибка генерации изображений: {e}")
+                        
+                        # Добавляем хэштеги к половине книг (50% вероятность)
+                        if random.random() < 0.5 and self.hashtags:
+                            try:
+                                # Количество хэштегов для этой книги (от 1 до 20, но не больше доступных)
+                                num_hashtags = random.randint(1, min(20, len(self.hashtags)))
+                                
+                                # Выбираем случайные хэштеги
+                                selected_hashtags = random.sample(self.hashtags, num_hashtags)
+                                
+                                # Добавляем хэштеги к книге
+                                for hashtag in selected_hashtags:
+                                    book.hashtags.add(hashtag)
+                                
+                            except Exception as e:
+                                print(f"    ⚠️  Ошибка добавления хэштегов: {e}")
                         
                         # Генерируем отзыв для части книг (40% вероятность)
                         if random.random() < 0.4:
