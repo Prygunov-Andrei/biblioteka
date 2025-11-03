@@ -1,0 +1,47 @@
+# Coverage конфигурация для проекта Biblioteka
+
+[run]
+source = books
+omit =
+    */tests/*
+    */migrations/*
+    */venv/*
+    */env/*
+    */__pycache__/*
+    manage.py
+    */settings.py
+    */conftest.py
+    */admin.py
+    */apps.py
+
+[report]
+# Исключения из отчета
+exclude_lines =
+    # Прагма: не считаем
+    pragma: no cover
+    # Защита от невыполнимого кода
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+    @property
+
+# Показать пропущенные строки
+show_missing = True
+
+# Минимальное покрытие (в процентах)
+precision = 2
+
+# Игнорировать пустые файлы
+skip_empty = True
+
+[html]
+# Директория для HTML отчета
+directory = htmlcov
+
+[report:term-missing]
+# Показать пропущенные строки в терминале
+show_missing = True
+

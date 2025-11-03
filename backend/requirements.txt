@@ -1,0 +1,20 @@
+# Python 3.9+
+
+# Django минимальный
+Django==4.2.7
+Pillow==10.0.1
+
+# Обработка изображений (для test_document_processor.py)
+opencv-python==4.8.1.78
+numpy==1.26.4
+dynamsoft-capture-vision-bundle==3.2.1000
+
+# CORS для React
+django-cors-headers==4.3.0
+
+# REST Framework
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.3.0
+
+# PostgreSQL
+psycopg2-binary==2.9.9
