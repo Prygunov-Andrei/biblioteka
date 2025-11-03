@@ -1,0 +1,36 @@
+.main-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f5f5f5;
+  transition: background-color 0.3s;
+}
+
+.dark-theme .main-page {
+  background-color: #121212;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  margin-top: 80px; /* Высота хедера */
+}
+
+.content-area {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  margin-left: 250px; /* Ширина sidebar */
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+  
+  .content-area {
+    margin-left: 0;
+    margin-top: 0;
+  }
+}
+

@@ -62,6 +62,9 @@ class LibrarySerializer(serializers.ModelSerializer):
             'city', 'country', 'description', 'books_count',
             'created_at', 'updated_at'
         ]
+        extra_kwargs = {
+            'owner': {'required': False}  # Устанавливается через perform_create
+        }
     
     def get_books_count(self, obj):
         return obj.books.count()
@@ -128,7 +131,7 @@ class BookImageSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = BookImage
-        fields = ['id', 'image_url', 'order', 'created_at']
+        fields = ['id', 'book', 'image_url', 'order', 'created_at']
     
     def get_image_url(self, obj):
         if obj.image:
@@ -160,7 +163,7 @@ class BookPageSerializer(serializers.ModelSerializer):
     class Meta:
         model = BookPage
         fields = [
-            'id', 'page_number', 'original_url', 'processed_url',
+            'id', 'book', 'page_number', 'original_url', 'processed_url',
             'processing_status', 'width', 'height', 'created_at'
         ]
     
@@ -187,7 +190,7 @@ class BookSerializer(serializers.ModelSerializer):
     library_name = serializers.CharField(source='library.name', read_only=True, allow_null=True)
     authors = AuthorSerializer(many=True, read_only=True)
     hashtags = HashtagSerializer(many=True, read_only=True)
-    images_count = serializers.IntegerField(source='images_count', read_only=True)
+    images_count = serializers.IntegerField(read_only=True)
     images = BookImageSerializer(many=True, read_only=True, source='images.all')
     reviews_count = serializers.IntegerField(source='reviews.count', read_only=True)
     

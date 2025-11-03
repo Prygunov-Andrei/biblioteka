@@ -1,0 +1,392 @@
+"""
+Главная фабрика тестовых данных
+"""
+import os
+import sys
+import random
+from pathlib import Path
+from typing import Optional
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.core.files import File
+
+from books.models import Category, Author, Publisher, Book, BookAuthor, BookImage, BookReview, Library
+
+# Добавляем путь к фабрике для импорта
+factory_path = Path(__file__).parent
+if str(factory_path) not in sys.path:
+    sys.path.insert(0, str(factory_path))
+
+from test_data_factory.generators.publishers_loader import load_publishers_from_json
+from test_data_factory.generators.authors_loader import load_authors_from_json
+from test_data_factory.generators.book_generator import BookGenerator
+from test_data_factory.generators.image_generator import generate_book_images
+
+User = get_user_model()
+
+
+class TestDataFactory:
+    """Фабрика для генерации тестовых данных"""
+    
+    def __init__(self, base_dir: Path = None):
+        """
+        Инициализация фабрики
+        
+        Args:
+            base_dir: Базовая директория проекта (для поиска файлов)
+        """
+        if base_dir is None:
+            self.base_dir = Path(__file__).parent.parent
+        else:
+            self.base_dir = base_dir
+        
+        self.output_images_dir = self.base_dir / 'test_data_factory' / 'generated_images'
+        self.authors_data = None
+        self.publishers_data = None
+        self.categories = None
+        self.authors = []
+        self.publishers = []
+        self.user = None
+        self.library = None
+    
+    def ensure_user_and_library(self, user_id: Optional[int] = None, library_id: Optional[int] = None):
+        """
+        Создает или получает пользователя и библиотеку
+        
+        Args:
+            user_id: ID пользователя (если указан, используется он)
+            library_id: ID библиотеки (если указан, используется она)
+        """
+        # Получаем или создаем пользователя
+        if user_id:
+            self.user = User.objects.get(id=user_id)
+        else:
+            # Ищем первого пользователя или создаем тестового
+            self.user = User.objects.first()
+            if not self.user:
+                self.user = User.objects.create_user(
+                    username='test_user',
+                    email='test@example.com',
+                    password='testpass123'
+                )
+        
+        # Получаем или создаем библиотеку
+        if library_id:
+            self.library = Library.objects.get(id=library_id)
+        else:
+            # Ищем библиотеку пользователя или создаем
+            self.library = Library.objects.filter(owner=self.user).first()
+            if not self.library:
+                self.library = Library.objects.create(
+                    owner=self.user,
+                    name='Тестовая библиотека',
+                    address='Адрес библиотеки',
+                    city='Москва',
+                    country='Россия',
+                    description='Библиотека для тестирования'
+                )
+    
+    def load_data(self):
+        """Загружает данные из JSON файлов"""
+        print("📚 Загрузка данных из JSON...")
+        self.authors_data = load_authors_from_json()
+        self.publishers_data = load_publishers_from_json()
+        print(f"  ✓ Загружено авторов: {len(self.authors_data)}")
+        print(f"  ✓ Загружено издательств: {len(self.publishers_data)}")
+        
+        # Загружаем категории
+        self.categories = list(Category.objects.all().order_by('order', 'name'))
+        print(f"  ✓ Загружено категорий: {len(self.categories)}")
+    
+    def ensure_authors_and_publishers_in_db(self) -> tuple[list, list]:
+        """
+        Создает авторов и издательства в БД, если их нет
+        
+        Returns:
+            (authors, publishers) - списки созданных объектов
+        """
+        if not self.authors_data:
+            self.load_data()
+        
+        print("\n📝 Проверка авторов в БД...")
+        created_authors = 0
+        existing_authors = 0
+        
+        for author_data in self.authors_data:
+            author, created = Author.objects.get_or_create(
+                full_name=author_data['full_name'],
+                defaults={
+                    'birth_year': author_data.get('birth_year'),
+                    'death_year': author_data.get('death_year'),
+                    'biography': author_data.get('biography', ''),
+                }
+            )
+            if created:
+                created_authors += 1
+            else:
+                existing_authors += 1
+            self.authors.append(author)
+        
+        print(f"  ✓ Создано авторов: {created_authors}")
+        print(f"  ✓ Уже существует: {existing_authors}")
+        
+        print("\n📝 Проверка издательств в БД...")
+        created_publishers = 0
+        existing_publishers = 0
+        
+        for publisher_data in self.publishers_data:
+            publisher, created = Publisher.objects.get_or_create(
+                name=publisher_data['name'],
+                defaults={
+                    'city': publisher_data.get('city', ''),
+                    'website': publisher_data.get('website', ''),
+                    'description': publisher_data.get('description', ''),
+                }
+            )
+            if created:
+                created_publishers += 1
+            else:
+                existing_publishers += 1
+            self.publishers.append(publisher)
+        
+        print(f"  ✓ Создано издательств: {created_publishers}")
+        print(f"  ✓ Уже существует: {existing_publishers}")
+        
+        return self.authors, self.publishers
+    
+    def _distribute_resources(self, total_books: int) -> tuple[list, list]:
+        """
+        Распределяет авторов и издательства так, чтобы все были использованы
+        
+        Args:
+            total_books: Общее количество книг для генерации
+        
+        Returns:
+            (authors_list, publishers_list) - списки авторов и издательств для каждой книги
+        """
+        authors_list = []
+        publishers_list = []
+        
+        # Перемешиваем для случайности
+        authors_pool = self.authors.copy()
+        publishers_pool = self.publishers.copy()
+        random.shuffle(authors_pool)
+        random.shuffle(publishers_pool)
+        
+        # Отслеживаем использованные
+        used_authors = set()
+        used_publishers = set()
+        
+        # Сначала гарантируем использование ВСЕХ авторов хотя бы один раз
+        # Создаем список для первых N книг с уникальными авторами
+        author_index = 0
+        publishers_index = 0
+        
+        # Проходим по всем авторам и создаем для каждого хотя бы одну книгу
+        for i in range(len(authors_pool)):
+            if i >= total_books:
+                break  # Если авторов больше чем книг, останавливаемся
+                
+            # Выбираем авторов (1-3 автора на книгу, но приоритет неиспользованным)
+            num_authors = random.randint(1, min(3, len(authors_pool)))
+            book_authors = []
+            
+            # Обязательно добавляем текущего автора (если он еще не использован)
+            if author_index < len(authors_pool):
+                current_author = authors_pool[author_index]
+                if current_author.id not in used_authors:
+                    book_authors.append(current_author)
+                    used_authors.add(current_author.id)
+                author_index += 1
+            
+            # Если нужно больше авторов, добавляем неиспользованных
+            unused_authors = [a for a in authors_pool if a.id not in used_authors]
+            while len(book_authors) < num_authors and unused_authors:
+                author = random.choice(unused_authors)
+                book_authors.append(author)
+                used_authors.add(author.id)
+                unused_authors.remove(author)
+            
+            # Если все еще не хватило, добавляем любых случайных
+            while len(book_authors) < num_authors:
+                author = random.choice(authors_pool)
+                if author not in book_authors:
+                    book_authors.append(author)
+            
+            authors_list.append(book_authors)
+            
+            # Выбираем издательство
+            if publishers_index < len(publishers_pool):
+                publisher = publishers_pool[publishers_index]
+                publishers_index += 1
+                used_publishers.add(publisher.id)
+            else:
+                # Все использованы, берем случайное
+                publisher = random.choice(publishers_pool)
+            
+            publishers_list.append(publisher)
+        
+        # Если книг больше чем авторов, заполняем остальные случайными авторами
+        while len(authors_list) < total_books:
+            num_authors = random.randint(1, min(3, len(authors_pool)))
+            book_authors = random.sample(authors_pool, min(num_authors, len(authors_pool)))
+            authors_list.append(book_authors)
+            
+            # Издательство
+            if publishers_index < len(publishers_pool):
+                publisher = publishers_pool[publishers_index]
+                publishers_index += 1
+            else:
+                publisher = random.choice(publishers_pool)
+            publishers_list.append(publisher)
+        
+        print(f"  ✓ Всего авторов использовано: {len(used_authors)} из {len(authors_pool)}")
+        print(f"  ✓ Всего издательств использовано: {len(used_publishers)} из {len(publishers_pool)}")
+        
+        return authors_list, publishers_list
+    
+    def generate_books_for_all_categories(self, books_per_category: int = 3):
+        """
+        Генерирует книги для всех категорий
+        
+        Args:
+            books_per_category: Количество книг на категорию
+        """
+        if not self.categories:
+            self.load_data()
+        
+        if not self.user or not self.library:
+            raise ValueError("Необходимо вызвать ensure_user_and_library() перед генерацией")
+        
+        if not self.authors or not self.publishers:
+            self.ensure_authors_and_publishers_in_db()
+        
+        total_books = len(self.categories) * books_per_category
+        print(f"\n📖 Генерация {total_books} книг для {len(self.categories)} категорий...")
+        print(f"   ({books_per_category} книг на категорию)\n")
+        
+        # Распределяем ресурсы
+        authors_list, publishers_list = self._distribute_resources(total_books)
+        
+        book_index = 0
+        created_count = 0
+        
+        for category in self.categories:
+            print(f"  📚 {category.name}...")
+            
+            for _ in range(books_per_category):
+                # Получаем назначенных авторов и издательство
+                book_authors = authors_list[book_index]
+                publisher = publishers_list[book_index]
+                book_index += 1
+                
+                try:
+                    with transaction.atomic():
+                        # Генерируем данные книги
+                        book_data = BookGenerator.generate_book_data(
+                            category=category,
+                            authors=book_authors,
+                            publisher=publisher,
+                            library=self.library,
+                            owner=self.user,
+                            category_name=category.name
+                        )
+                        
+                        # Создаем книгу
+                        book = Book.objects.create(**book_data)
+                        created_count += 1
+                        
+                        # Добавляем авторов
+                        for order, author in enumerate(book_authors, start=1):
+                            BookAuthor.objects.create(
+                                book=book,
+                                author=author,
+                                order=order
+                            )
+                        
+                        # Генерируем изображения
+                        try:
+                            image_paths = generate_book_images(
+                                title=book.title,
+                                count=3,
+                                output_dir=self.output_images_dir
+                            )
+                            
+                            # Создаем записи BookImage
+                            for order, img_path in enumerate(image_paths, start=1):
+                                with open(img_path, 'rb') as img_file:
+                                    book_image = BookImage(
+                                        book=book,
+                                        order=order
+                                    )
+                                    book_image.image.save(
+                                        img_path.name,
+                                        File(img_file),
+                                        save=True
+                                    )
+                            
+                        except Exception as e:
+                            print(f"    ⚠️  Ошибка генерации изображений: {e}")
+                        
+                        # Генерируем отзыв для части книг (40% вероятность)
+                        if random.random() < 0.4:
+                            try:
+                                # Генерируем оценку (1-5)
+                                rating = random.randint(1, 5)
+                                
+                                # Генерируем текст отзыва (70% вероятность)
+                                review_text = ""
+                                if random.random() < 0.7:
+                                    review_texts = [
+                                        "Отличная книга, рекомендую!",
+                                        "Очень интересное произведение.",
+                                        "Неожиданный поворот сюжета.",
+                                        "Классика, которую стоит прочитать.",
+                                        "Интересно, но не без недостатков.",
+                                        "Прекрасное произведение, впечатлен.",
+                                        "На любителя, но мне понравилось.",
+                                        "Сложное, но стоящее чтение.",
+                                        "Легко читается, рекомендую.",
+                                        "Не самое лучшее произведение автора.",
+                                    ]
+                                    review_text = random.choice(review_texts)
+                                
+                                BookReview.objects.create(
+                                    book=book,
+                                    user=self.user,
+                                    rating=rating,
+                                    review_text=review_text
+                                )
+                            except Exception as e:
+                                print(f"    ⚠️  Ошибка создания отзыва: {e}")
+                    
+                except Exception as e:
+                    print(f"    ❌ Ошибка создания книги: {e}")
+                    continue
+        
+        print(f"\n✅ Создано книг: {created_count}")
+        return created_count
+    
+    def cleanup(self):
+        """Удаляет временные файлы"""
+        import shutil
+        if self.output_images_dir.exists():
+            shutil.rmtree(self.output_images_dir, ignore_errors=True)
+            print(f"\n🧹 Очистка: удалена директория {self.output_images_dir}")
+
+
+if __name__ == '__main__':
+    # Тест (требует настройки Django)
+    import django
+    
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+    django.setup()
+    
+    factory = TestDataFactory()
+    factory.ensure_user_and_library()
+    factory.load_data()
+    factory.ensure_authors_and_publishers_in_db()
+    factory.generate_books_for_all_categories(books_per_category=2)
+    factory.cleanup()

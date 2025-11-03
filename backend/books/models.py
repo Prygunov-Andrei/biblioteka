@@ -336,6 +336,7 @@ class Book(models.Model):
     # Статус книги
     STATUS_CHOICES = [
         ('none', 'Без статуса'),
+        ('reading', 'Читаю'),
         ('read', 'Прочитано'),
         ('want_to_read', 'Буду читать'),
         ('want_to_reread', 'Буду перечитывать'),

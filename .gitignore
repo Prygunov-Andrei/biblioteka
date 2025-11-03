@@ -68,3 +68,7 @@ htmlcov/
 *.png
 *.gif
 !example.jpg
+
+# Test data factory (temporary)
+test_data_factory/generated_images/
+test_data_factory/__pycache__/

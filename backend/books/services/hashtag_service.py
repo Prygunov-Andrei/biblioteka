@@ -67,8 +67,20 @@ class HashtagService:
         if not hashtag_names:
             return []
         
-        # Проверка лимита
-        current_count = book.book_hashtags.count()
+        # Убеждаемся что hashtag_names - это список
+        if not isinstance(hashtag_names, list):
+            # Если это строка, преобразуем в список с одним элементом
+            hashtag_names = [hashtag_names] if hashtag_names else []
+        
+        # Проверка лимита - используем прямую проверку через BookHashtag для актуальности
+        # Важно: получаем свежий объект книги из БД, чтобы избежать проблем с кэшированием
+        from ..models import BookHashtag, Book
+        # Получаем ID книги - используем int() для явного преобразования
+        book_id = int(book.pk)
+        # Используем прямой запрос к БД для получения актуального количества
+        # Важно: используем book_id, а не объект book, чтобы избежать проблем с кэшированием
+        current_count = BookHashtag.objects.filter(book_id=book_id).count()
+        
         if current_count + len(hashtag_names) > MAX_HASHTAGS_PER_BOOK:
             raise HashtagLimitExceeded(
                 f"Нельзя добавить более "
@@ -85,8 +97,9 @@ class HashtagService:
                 )
                 
                 # Создаем связь (если еще не существует)
+                # Используем book_id напрямую для избежания проблем с кэшированием
                 book_hashtag, link_created = BookHashtag.objects.get_or_create(
-                    book=book,
+                    book_id=book_id,
                     hashtag=hashtag
                 )
                 

@@ -1,0 +1,73 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0;
+  transition: border-color 0.3s;
+}
+
+.dark-theme .filters {
+  border-bottom-color: #333;
+}
+
+.filter-button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  color: #333;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dark-theme .filter-button {
+  background: #2a2a2a;
+  border-color: #444;
+  color: #fff;
+}
+
+.filter-count {
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.filter-button:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.dark-theme .filter-button:hover {
+  border-color: #667eea;
+  background-color: #333;
+}
+
+.filter-button.active {
+  background: #ff6b9d;
+  border-color: #ff6b9d;
+  color: white;
+}
+
+.filter-button.active:hover {
+  background: #ff5a8a;
+  border-color: #ff5a8a;
+}
+
+@media (max-width: 768px) {
+  .filters {
+    gap: 8px;
+  }
+  
+  .filter-button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+

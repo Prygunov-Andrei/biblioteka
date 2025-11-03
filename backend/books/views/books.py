@@ -231,7 +231,11 @@ class BookViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def hashtags(self, request, pk=None):
         """Добавить хэштеги к книге"""
-        book = self.get_object()
+        # Используем get_object() для получения книги (DRF правильно обрабатывает pk)
+        # Затем перезагружаем объект из БД для актуального состояния хэштегов
+        book_obj = self.get_object()
+        from books.models import Book
+        book = Book.objects.select_related('owner', 'library').get(pk=book_obj.pk)
         
         # Проверяем что это владелец
         if book.owner != request.user:
@@ -241,6 +245,11 @@ class BookViewSet(viewsets.ModelViewSet):
             )
         
         hashtag_names = request.data.get('hashtag_names', [])
+        
+        # Убеждаемся что hashtag_names - это список
+        if not isinstance(hashtag_names, list):
+            # Если это строка, преобразуем в список с одним элементом
+            hashtag_names = [hashtag_names] if hashtag_names else []
         
         if not hashtag_names:
             return Response(
@@ -254,6 +263,9 @@ class BookViewSet(viewsets.ModelViewSet):
                 hashtag_names,
                 request.user
             )
+            
+            # Обновляем объект из БД чтобы получить актуальные хэштеги
+            book.refresh_from_db()
             
             serializer = HashtagSerializer(
                 book.hashtags.all(),

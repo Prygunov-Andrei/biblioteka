@@ -74,25 +74,109 @@ def sample_image_file(tmp_path):
     return img_path
 
 
-# Заглушки для будущих Factory Boy фабрик
-# TODO: Реализовать после установки factory-boy
-# @pytest.fixture
-# def category_factory():
-#     from tests.fixtures.factories import CategoryFactory
-#     return CategoryFactory
-#
-# @pytest.fixture
-# def author_factory():
-#     from tests.fixtures.factories import AuthorFactory
-#     return AuthorFactory
-#
-# @pytest.fixture
-# def publisher_factory():
-#     from tests.fixtures.factories import PublisherFactory
-#     return PublisherFactory
-#
-# @pytest.fixture
-# def book_factory():
-#     from tests.fixtures.factories import BookFactory
-#     return BookFactory
+# Простые helper-функции для создания тестовых объектов
+@pytest.fixture
+def user(db):
+    """Создает тестового пользователя"""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    return User.objects.create_user(
+        username='testuser',
+        email='test@example.com',
+        password='testpass123'
+    )
+
+
+@pytest.fixture
+def user2(db):
+    """Создает второго тестового пользователя"""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    return User.objects.create_user(
+        username='testuser2',
+        email='test2@example.com',
+        password='testpass123'
+    )
+
+
+@pytest.fixture
+def category(db):
+    """Создает тестовую категорию"""
+    from books.models import Category
+    return Category.objects.create(
+        code='test_cat',
+        name='Тестовая категория',
+        slug='test-category',
+        icon='📚',
+        order=1
+    )
+
+
+@pytest.fixture
+def author(db):
+    """Создает тестового автора"""
+    from books.models import Author
+    return Author.objects.create(
+        full_name='Тестов Автор Иванович',
+        birth_year=1950,
+        death_year=2000,
+        biography='Тестовая биография'
+    )
+
+
+@pytest.fixture
+def publisher(db):
+    """Создает тестовое издательство"""
+    from books.models import Publisher
+    return Publisher.objects.create(
+        name='Тестовое издательство',
+        city='Москва',
+        website='https://test.ru',
+        description='Тестовое описание'
+    )
+
+
+@pytest.fixture
+def library(db, user):
+    """Создает тестовую библиотеку"""
+    from books.models import Library
+    return Library.objects.create(
+        owner=user,
+        name='Тестовая библиотека',
+        address='Тестовый адрес',
+        city='Москва',
+        country='Россия',
+        description='Тестовое описание'
+    )
+
+
+@pytest.fixture
+def book(db, user, category, author, publisher, library):
+    """Создает тестовую книгу"""
+    from books.models import Book, BookAuthor
+    book = Book.objects.create(
+        owner=user,
+        library=library,
+        category=category,
+        publisher=publisher,
+        title='Тестовая книга',
+        subtitle='Подзаголовок',
+        description='Описание книги',
+        status='none',
+        year=2020,
+        pages_info='300 стр.',
+        binding_type='hard',
+        format='regular',
+        condition='good',
+        price_rub=1000.00
+    )
+    BookAuthor.objects.create(book=book, author=author, order=1)
+    return book
+
+
+@pytest.fixture
+def authenticated_client(api_client, user):
+    """API клиент с аутентифицированным пользователем"""
+    api_client.force_authenticate(user=user)
+    return api_client
 
