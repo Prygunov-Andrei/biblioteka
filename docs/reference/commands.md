@@ -73,6 +73,73 @@ python manage.py createsuperuser
 python manage.py shell
 ```
 
+### rebuild_category_hierarchy
+
+Перестраивает иерархию категорий на основе двоеточий в названиях.
+
+**Использование:**
+```bash
+# Показать что будет сделано без изменений
+python manage.py rebuild_category_hierarchy --dry-run
+
+# Выполнить перестройку
+python manage.py rebuild_category_hierarchy
+
+# Сбросить всю иерархию
+python manage.py rebuild_category_hierarchy --reset
+
+# Исправить категории с пустым slug
+python manage.py rebuild_category_hierarchy --fix-empty-slugs
+
+# Проверить дубликаты родительских категорий
+python manage.py rebuild_category_hierarchy --check-duplicates
+```
+
+**Описание:**
+- Анализирует названия категорий с двоеточиями (например, "Детская литература: Проза")
+- Создает родительские категории из части до двоеточия
+- Связывает подкатегории с родительскими
+- Нормализует похожие названия (например, "Искусствo" и "Искусство")
+
+---
+
+### delete_all_books
+
+Удаляет все книги из базы данных, сохраняя категории, авторов и издательства.
+
+**Использование:**
+```bash
+# Подтверждение обязательно
+python manage.py delete_all_books --confirm
+```
+
+**Описание:**
+- Удаляет все книги и связанные данные (изображения, страницы, отзывы)
+- Сохраняет категории, авторов и издательства
+- Полезно перед перегенерацией тестовых данных
+
+---
+
+### generate_test_books
+
+Генерирует тестовые книги для всех категорий.
+
+**Использование:**
+```bash
+# По умолчанию: 3 книги на категорию
+python manage.py generate_test_books
+
+# Указать количество книг на категорию
+python manage.py generate_test_books --count-per-category 10
+```
+
+**Описание:**
+- Генерирует книги со всеми полями
+- Добавляет изображения и хэштеги
+- Использует всех авторов и издательства из JSON файлов
+
+---
+
 ### runserver
 Запускает сервер разработки.
 
@@ -84,7 +151,7 @@ python manage.py runserver
 Собирает статические файлы.
 
 ```bash
-python manage.py collectstatic
+python collectstatic
 ```
 
 ---

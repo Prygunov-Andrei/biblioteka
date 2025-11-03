@@ -56,6 +56,7 @@ npm start
 
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8000/api/
+- Django Admin: http://localhost:8000/admin/
 - Войти: `admin` / `admin`
 
 ## Устранение проблем
