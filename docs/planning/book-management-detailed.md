@@ -74,10 +74,11 @@
 **Поля, НЕ включаемые в ответ LLM:**
 - `owner` - заполняется автоматически на бэкенде
 - `library` - выбирается пользователем в форме
-- `status` - выбирается пользователем в форме
+- `status` - выбирается пользователем в форме (none, reading, read, want_to_read, want_to_reread)
 - `hashtags` - добавляются пользователем в форме
+- `reading_dates` - добавляются пользователем в форме для книг со статусом 'read' (можно добавить несколько дат для отслеживания перечитываний)
 - `created_at`, `updated_at` - системные поля
-- `images`, `electronic_versions`, `pages`, `reviews`, `reading_dates` - управляются отдельно
+- `images`, `electronic_versions`, `pages`, `reviews` - управляются отдельно
 
 ---
 
@@ -547,6 +548,8 @@ Body:
 - `POST /api/books/{id}/electronic_versions/` - добавление электронной версии
 - `DELETE /api/books/{id}/electronic_versions/{version_id}/` - удаление версии
 - `DELETE /api/books/{id}/pages/{page_id}/` - удаление страницы
+- `POST /api/books/{id}/reading_dates/` - добавление даты прочтения
+- `DELETE /api/books/{id}/reading_dates/{date_id}/` - удаление даты прочтения
 - Примечание: отзывы управляются через `/api/reviews/` (не через BookEditModal)
 
 #### Тестирование:
