@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.files import File
 
-from books.models import Category, Author, Publisher, Book, BookAuthor, BookImage, BookReview, Library, Hashtag
+from books.models import Category, Author, Publisher, Language, Book, BookAuthor, BookImage, BookReview, Library, Hashtag
 
 # Добавляем путь к фабрике для импорта
 factory_path = Path(__file__).parent
@@ -48,6 +48,7 @@ class TestDataFactory:
         self.categories = None
         self.authors = []
         self.publishers = []
+        self.languages = []
         self.hashtags = []
         self.user = None
         self.library = None
@@ -217,6 +218,9 @@ class TestDataFactory:
         
         # Создаем хэштеги в БД, если их нет
         self._ensure_hashtags_in_db()
+        
+        # Создаем языки в БД, если их нет
+        self._ensure_languages_in_db()
     
     def ensure_authors_and_publishers_in_db(self) -> tuple[list, list]:
         """
@@ -329,6 +333,48 @@ class TestDataFactory:
         
         print(f"  ✓ Создано хэштегов: {created_hashtags}")
         print(f"  ✓ Уже существует: {existing_hashtags}")
+    
+    def _ensure_languages_in_db(self):
+        """Создает языки в БД, если их нет"""
+        print("\n🌍 Проверка языков в БД...")
+        
+        # Список основных языков
+        languages_data = [
+            {'name': 'Русский', 'code': 'ru'},
+            {'name': 'Английский', 'code': 'en'},
+            {'name': 'Немецкий', 'code': 'de'},
+            {'name': 'Французский', 'code': 'fr'},
+            {'name': 'Испанский', 'code': 'es'},
+            {'name': 'Итальянский', 'code': 'it'},
+            {'name': 'Польский', 'code': 'pl'},
+            {'name': 'Чешский', 'code': 'cs'},
+            {'name': 'Украинский', 'code': 'uk'},
+            {'name': 'Белорусский', 'code': 'be'},
+            {'name': 'Латинский', 'code': 'la'},
+            {'name': 'Древнегреческий', 'code': 'grc'},
+            {'name': 'Японский', 'code': 'ja'},
+            {'name': 'Китайский', 'code': 'zh'},
+            {'name': 'Арабский', 'code': 'ar'},
+        ]
+        
+        created_languages = 0
+        existing_languages = 0
+        
+        for lang_data in languages_data:
+            language, created = Language.objects.get_or_create(
+                name=lang_data['name'],
+                defaults={
+                    'code': lang_data['code'],
+                }
+            )
+            if created:
+                created_languages += 1
+            else:
+                existing_languages += 1
+            self.languages.append(language)
+        
+        print(f"  ✓ Создано языков: {created_languages}")
+        print(f"  ✓ Уже существует: {existing_languages}")
     
     def _distribute_resources(self, total_books: int) -> tuple[list, list]:
         """
@@ -497,7 +543,8 @@ class TestDataFactory:
                             publisher=publisher,
                             library=selected_library,
                             owner=library_owner,
-                            category_name=category.name
+                            category_name=category.name,
+                            languages=self.languages
                         )
                         
                         # Создаем книгу

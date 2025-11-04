@@ -7,8 +7,8 @@ from django.db import IntegrityError
 from django.contrib.auth import get_user_model
 
 from books.models import (
-    Category, Author, Publisher, Book, BookAuthor, BookImage,
-    BookElectronic, BookPage, UserProfile, Library, Hashtag,
+    Category, Author, Publisher, Language, Book, BookAuthor, BookImage,
+    BookElectronic, BookPage, BookReadingDate, UserProfile, Library, Hashtag,
     BookHashtag, BookReview
 )
 
@@ -87,6 +87,43 @@ class TestPublisher:
     def test_publisher_str(self, publisher):
         """Проверка __str__ метода"""
         assert str(publisher) == publisher.name
+
+
+class TestLanguage:
+    """Тесты модели Language"""
+    
+    def test_create_language(self, db):
+        """Создание языка"""
+        language = Language.objects.create(
+            name='Русский',
+            code='ru'
+        )
+        assert language.name == 'Русский'
+        assert language.code == 'ru'
+    
+    def test_language_str(self, language):
+        """Проверка __str__ метода"""
+        assert str(language) == language.name
+    
+    def test_language_unique_name(self, db):
+        """Уникальность названия языка"""
+        Language.objects.create(name='Русский', code='ru')
+        with pytest.raises(IntegrityError):
+            Language.objects.create(name='Русский', code='ru2')
+    
+    def test_language_unique_code(self, db):
+        """Уникальность кода языка"""
+        Language.objects.create(name='Русский', code='ru')
+        with pytest.raises(IntegrityError):
+            Language.objects.create(name='Russian', code='ru')
+    
+    def test_language_without_code(self, db):
+        """Язык без кода"""
+        language = Language.objects.create(
+            name='Древнегреческий',
+            code=''
+        )
+        assert language.code == ''
 
 
 class TestUserProfile:
@@ -238,6 +275,37 @@ class TestBook:
         library.delete()
         book.refresh_from_db()
         assert book.library is None
+    
+    def test_book_circulation(self, book):
+        """Проверка поля тираж"""
+        book.circulation = 10000
+        book.save()
+        book.refresh_from_db()
+        assert book.circulation == 10000
+    
+    def test_book_language(self, book, language):
+        """Проверка поля язык"""
+        book.language = language
+        book.save()
+        book.refresh_from_db()
+        assert book.language == language
+        assert book.language.name == 'Русский'
+    
+    def test_book_set_null_language(self, language, book):
+        """При удалении языка language становится null"""
+        book.language = language
+        book.save()
+        language_id = language.id
+        language.delete()
+        book.refresh_from_db()
+        assert book.language is None
+    
+    def test_book_circulation_validation(self, book):
+        """Валидация тиража (минимум 1)"""
+        from django.core.exceptions import ValidationError
+        book.circulation = 0
+        with pytest.raises(ValidationError):
+            book.full_clean()
 
 
 class TestBookAuthor:
@@ -429,4 +497,95 @@ class TestBookPage:
             )
             assert page.processing_status == status
             page_number += 1  # Увеличиваем для следующей итерации
+
+
+class TestBookReadingDate:
+    """Тесты модели BookReadingDate"""
+    
+    def test_create_reading_date(self, book):
+        """Создание даты прочтения"""
+        from datetime import date
+        reading_date = BookReadingDate.objects.create(
+            book=book,
+            date=date(2024, 1, 15),
+            notes='Прочитал за один вечер'
+        )
+        assert reading_date.book == book
+        assert reading_date.date == date(2024, 1, 15)
+        assert reading_date.notes == 'Прочитал за один вечер'
+    
+    def test_reading_date_str(self, book):
+        """Проверка __str__ метода"""
+        from datetime import date
+        reading_date = BookReadingDate.objects.create(
+            book=book,
+            date=date(2024, 1, 15)
+        )
+        assert book.title in str(reading_date)
+        assert '2024-01-15' in str(reading_date)
+    
+    def test_multiple_reading_dates(self, book):
+        """Множественные даты прочтения для одной книги"""
+        from datetime import date
+        # Первое прочтение
+        reading_date1 = BookReadingDate.objects.create(
+            book=book,
+            date=date(2020, 1, 10),
+            notes='Первое прочтение'
+        )
+        # Перечитывание
+        reading_date2 = BookReadingDate.objects.create(
+            book=book,
+            date=date(2024, 1, 15),
+            notes='Перечитывание'
+        )
+        
+        assert BookReadingDate.objects.filter(book=book).count() == 2
+        assert reading_date1.date < reading_date2.date
+    
+    def test_reading_date_unique(self, book):
+        """Уникальность даты прочтения для книги"""
+        from datetime import date
+        BookReadingDate.objects.create(
+            book=book,
+            date=date(2024, 1, 15)
+        )
+        
+        # Нельзя создать две записи с одной датой для одной книги
+        with pytest.raises(IntegrityError):
+            BookReadingDate.objects.create(
+                book=book,
+                date=date(2024, 1, 15)
+            )
+    
+    def test_reading_date_cascade_delete(self, book):
+        """При удалении книги удаляются даты прочтения"""
+        from datetime import date
+        reading_date = BookReadingDate.objects.create(
+            book=book,
+            date=date(2024, 1, 15)
+        )
+        reading_date_id = reading_date.id
+        book_id = book.id
+        
+        book.delete()
+        assert not BookReadingDate.objects.filter(id=reading_date_id).exists()
+    
+    def test_reading_date_ordering(self, book):
+        """Проверка сортировки дат прочтения (по убыванию даты)"""
+        from datetime import date
+        # Создаем даты в разном порядке
+        reading_date2 = BookReadingDate.objects.create(
+            book=book,
+            date=date(2024, 1, 15)
+        )
+        reading_date1 = BookReadingDate.objects.create(
+            book=book,
+            date=date(2020, 1, 10)
+        )
+        
+        # Получаем все даты для книги
+        dates = list(BookReadingDate.objects.filter(book=book))
+        # Должны быть отсортированы по убыванию даты
+        assert dates[0].date > dates[1].date
 

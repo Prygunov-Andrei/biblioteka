@@ -324,6 +324,33 @@ class Publisher(models.Model):
         return self.name
 
 
+class Language(models.Model):
+    """Язык текста книги"""
+    name = models.CharField(
+        'Название',
+        max_length=100,
+        unique=True,
+        help_text='Название языка (например, "Русский", "Английский")'
+    )
+    code = models.CharField(
+        'Код языка',
+        max_length=10,
+        unique=True,
+        blank=True,
+        help_text='ISO код языка (например, "ru", "en", "de")'
+    )
+    created_at = models.DateTimeField('Создано', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Язык'
+        verbose_name_plural = 'Языки'
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+
+
 class Book(models.Model):
     """Книга"""
     
@@ -439,6 +466,22 @@ class Book(models.Model):
         max_length=200,
         blank=True,
         help_text='Страниц. Можно указать количество иллюстраций, схем, карт или их наличие.'
+    )
+    circulation = models.IntegerField(
+        'Тираж',
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text='Тираж книги в штуках'
+    )
+    language = models.ForeignKey(
+        'Language',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='books',
+        verbose_name='Язык текста',
+        help_text='Язык текста книги'
     )
     
     # Физические характеристики
@@ -698,3 +741,34 @@ class BookPage(models.Model):
     
     def __str__(self):
         return f"{self.book.title} - стр. {self.page_number}"
+
+
+class BookReadingDate(models.Model):
+    """Дата прочтения книги (может быть несколько дат для одной книги)"""
+    book = models.ForeignKey(
+        Book,
+        on_delete=models.CASCADE,
+        related_name='reading_dates',
+        verbose_name='Книга',
+        help_text='Книга, которую прочитали'
+    )
+    date = models.DateField(
+        'Дата прочтения',
+        help_text='Дата, когда книга была прочитана'
+    )
+    notes = models.TextField(
+        'Заметки',
+        blank=True,
+        help_text='Дополнительные заметки о прочтении (например, где прочитали, впечатления)'
+    )
+    created_at = models.DateTimeField('Создано', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Дата прочтения'
+        verbose_name_plural = 'Даты прочтения'
+        ordering = ['book', '-date']
+        unique_together = ['book', 'date']  # Одна дата прочтения на книгу
+    
+    def __str__(self):
+        return f"{self.book.title} - {self.date}"

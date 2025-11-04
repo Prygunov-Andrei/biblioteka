@@ -127,6 +127,21 @@ class BookGenerator:
             return Decimal(str(price))
         return None
     
+    @staticmethod
+    def generate_circulation() -> Optional[int]:
+        """Генерирует тираж книги (70% chance)"""
+        if random.random() < 0.7:
+            # Тираж от 500 до 100000 экземпляров
+            # Используем логарифмическое распределение для более реалистичных значений
+            circulation = random.choice([
+                random.randint(500, 2000),      # Малый тираж
+                random.randint(2000, 10000),    # Средний тираж
+                random.randint(10000, 50000),   # Большой тираж
+                random.randint(50000, 100000),  # Очень большой тираж
+            ])
+            return circulation
+        return None
+    
     @classmethod
     def generate_book_data(
         cls,
@@ -135,7 +150,8 @@ class BookGenerator:
         publisher,
         library,
         owner,
-        category_name: str = None
+        category_name: str = None,
+        languages: list = None
     ) -> dict:
         """
         Генерирует полные данные для книги
@@ -147,6 +163,7 @@ class BookGenerator:
             library: Объект Library
             owner: Объект User
             category_name: Название категории (для генерации названия)
+            languages: Список объектов Language для выбора языка книги
         
         Returns:
             Словарь с данными для создания Book
@@ -225,6 +242,10 @@ class BookGenerator:
             # Метаданные
             'seller_code': cls.generate_seller_code(),
             'isbn': cls.generate_isbn() or '',
+            
+            # Новые поля
+            'circulation': cls.generate_circulation(),
+            'language': random.choice(languages) if languages and random.random() < 0.8 else None,  # 80% chance языка
         }
         
         return book_data

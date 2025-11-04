@@ -137,6 +137,16 @@ def publisher(db):
 
 
 @pytest.fixture
+def language(db):
+    """Создает тестовый язык"""
+    from books.models import Language
+    return Language.objects.create(
+        name='Русский',
+        code='ru'
+    )
+
+
+@pytest.fixture
 def library(db, user):
     """Создает тестовую библиотеку"""
     from books.models import Library
@@ -151,7 +161,7 @@ def library(db, user):
 
 
 @pytest.fixture
-def book(db, user, category, author, publisher, library):
+def book(db, user, category, author, publisher, library, language):
     """Создает тестовую книгу"""
     from books.models import Book, BookAuthor
     book = Book.objects.create(
@@ -159,12 +169,14 @@ def book(db, user, category, author, publisher, library):
         library=library,
         category=category,
         publisher=publisher,
+        language=language,
         title='Тестовая книга',
         subtitle='Подзаголовок',
         description='Описание книги',
         status='none',
         year=2020,
         pages_info='300 стр.',
+        circulation=5000,
         binding_type='hard',
         format='regular',
         condition='good',

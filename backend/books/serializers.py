@@ -4,8 +4,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
-    Category, Book, BookPage, Author, Publisher, BookImage, BookElectronic, BookAuthor,
-    UserProfile, Library, Hashtag, BookHashtag, BookReview
+    Category, Book, BookPage, Author, Publisher, Language, BookImage, BookElectronic, BookAuthor,
+    UserProfile, Library, Hashtag, BookHashtag, BookReview, BookReadingDate
 )
 from .constants import MAX_HASHTAGS_PER_BOOK, MAX_AUTHORS_PER_BOOK
 from .services.hashtag_service import HashtagService
@@ -195,6 +195,22 @@ class PublisherSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'city', 'website', 'description']
 
 
+class LanguageSerializer(serializers.ModelSerializer):
+    """Сериализатор языка"""
+    
+    class Meta:
+        model = Language
+        fields = ['id', 'name', 'code']
+
+
+class BookReadingDateSerializer(serializers.ModelSerializer):
+    """Сериализатор даты прочтения книги"""
+    
+    class Meta:
+        model = BookReadingDate
+        fields = ['id', 'book', 'date', 'notes', 'created_at', 'updated_at']
+
+
 class BookImageSerializer(serializers.ModelSerializer):
     """Сериализатор изображения книги"""
     image_url = serializers.SerializerMethodField()
@@ -258,6 +274,7 @@ class BookSerializer(serializers.ModelSerializer):
     publisher_name = serializers.CharField(source='publisher.name', read_only=True)
     owner_username = serializers.CharField(source='owner.username', read_only=True)
     library_name = serializers.CharField(source='library.name', read_only=True, allow_null=True)
+    language_name = serializers.CharField(source='language.name', read_only=True, allow_null=True)
     authors = AuthorSerializer(many=True, read_only=True)
     hashtags = HashtagSerializer(many=True, read_only=True)
     images_count = serializers.IntegerField(read_only=True)
@@ -270,7 +287,8 @@ class BookSerializer(serializers.ModelSerializer):
             'id', 'title', 'subtitle', 'category', 'category_name', 'category_code', 'category_icon',
             'owner', 'owner_username', 'library', 'library_name', 'status',
             'authors', 'hashtags', 'publication_place', 'publisher', 'publisher_name',
-            'year', 'year_approx', 'pages_info',
+            'year', 'year_approx', 'pages_info', 'circulation',
+            'language', 'language_name',
             'binding_type', 'binding_details', 'format',
             'price_rub', 'description', 'condition', 'condition_details',
             'seller_code', 'isbn',
@@ -284,9 +302,10 @@ class BookDetailSerializer(BookSerializer):
     electronic_versions = BookElectronicSerializer(many=True, read_only=True, source='electronic_versions.all')
     pages = BookPageSerializer(source='pages_set', many=True, read_only=True)
     reviews = BookReviewSerializer(many=True, read_only=True)
+    reading_dates = BookReadingDateSerializer(many=True, read_only=True, source='reading_dates.all')
     
     class Meta(BookSerializer.Meta):
-        fields = BookSerializer.Meta.fields + ['electronic_versions', 'pages', 'reviews']
+        fields = BookSerializer.Meta.fields + ['electronic_versions', 'pages', 'reviews', 'reading_dates']
 
 
 class BookCreateSerializer(serializers.ModelSerializer):
@@ -310,7 +329,8 @@ class BookCreateSerializer(serializers.ModelSerializer):
             'category', 'title', 'subtitle',
             'library', 'status',
             'publication_place', 'publisher',
-            'year', 'year_approx', 'pages_info',
+            'year', 'year_approx', 'pages_info', 'circulation',
+            'language',
             'binding_type', 'binding_details', 'format',
             'price_rub', 'description',
             'condition', 'condition_details',
@@ -359,7 +379,8 @@ class BookUpdateSerializer(serializers.ModelSerializer):
             'category', 'title', 'subtitle',
             'library', 'status',
             'publication_place', 'publisher',
-            'year', 'year_approx', 'pages_info',
+            'year', 'year_approx', 'pages_info', 'circulation',
+            'language',
             'binding_type', 'binding_details', 'format',
             'price_rub', 'description',
             'condition', 'condition_details',

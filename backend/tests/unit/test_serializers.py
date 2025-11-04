@@ -7,13 +7,13 @@ from rest_framework.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 
 from books.models import (
-    Category, Author, Publisher, Book, BookAuthor, BookImage,
-    BookElectronic, UserProfile, Library, Hashtag, BookReview
+    Category, Author, Publisher, Language, Book, BookAuthor, BookImage,
+    BookElectronic, BookReadingDate, UserProfile, Library, Hashtag, BookReview
 )
 from books.serializers import (
-    CategorySerializer, AuthorSerializer, PublisherSerializer,
+    CategorySerializer, AuthorSerializer, PublisherSerializer, LanguageSerializer,
     BookSerializer, BookCreateSerializer, BookUpdateSerializer,
-    BookImageSerializer, BookElectronicSerializer,
+    BookImageSerializer, BookElectronicSerializer, BookReadingDateSerializer,
     UserProfileSerializer, LibrarySerializer, HashtagSerializer,
     BookReviewSerializer
 )
@@ -103,16 +103,41 @@ class TestPublisherSerializer:
         assert publisher.name == 'Новое издательство'
 
 
+class TestLanguageSerializer:
+    """Тесты LanguageSerializer"""
+    
+    def test_serialize_language(self, language):
+        """Сериализация языка"""
+        serializer = LanguageSerializer(language)
+        data = serializer.data
+        assert data['name'] == language.name
+        assert data['code'] == language.code
+    
+    def test_deserialize_language(self, db):
+        """Десериализация языка"""
+        data = {
+            'name': 'Английский',
+            'code': 'en'
+        }
+        serializer = LanguageSerializer(data=data)
+        assert serializer.is_valid()
+        language = serializer.save()
+        assert language.name == 'Английский'
+        assert language.code == 'en'
+
+
 class TestBookCreateSerializer:
     """Тесты BookCreateSerializer"""
     
-    def test_create_book_with_authors(self, db, user, category, author, publisher, library):
+    def test_create_book_with_authors(self, db, user, category, author, publisher, library, language):
         """Создание книги с авторами"""
         data = {
             'category': category.id,
             'title': 'Новая книга',
             'library': library.id,
             'publisher': publisher.id,
+            'language': language.id,
+            'circulation': 5000,
             'author_ids': [author.id],
             'year': 2020,
             'status': 'none'
@@ -123,6 +148,8 @@ class TestBookCreateSerializer:
         assert book.title == 'Новая книга'
         assert book.authors.count() == 1
         assert book.owner == user
+        assert book.language == language
+        assert book.circulation == 5000
     
     def test_create_book_max_authors(self, db, user, category, publisher, library):
         """Проверка лимита авторов"""
@@ -214,6 +241,43 @@ class TestBookSerializer:
         assert 'authors' in data
         assert 'category' in data
         assert 'publisher' in data
+        assert 'circulation' in data
+        assert 'language' in data
+        assert 'language_name' in data
+        assert data['circulation'] == 5000
+        assert data['language_name'] == 'Русский'
+
+
+class TestBookReadingDateSerializer:
+    """Тесты BookReadingDateSerializer"""
+    
+    def test_serialize_reading_date(self, book):
+        """Сериализация даты прочтения"""
+        from datetime import date
+        reading_date = BookReadingDate.objects.create(
+            book=book,
+            date=date(2024, 1, 15),
+            notes='Прочитал за один вечер'
+        )
+        serializer = BookReadingDateSerializer(reading_date)
+        data = serializer.data
+        assert data['book'] == book.id
+        assert data['date'] == '2024-01-15'
+        assert data['notes'] == 'Прочитал за один вечер'
+    
+    def test_deserialize_reading_date(self, book):
+        """Десериализация даты прочтения"""
+        data = {
+            'book': book.id,
+            'date': '2024-01-15',
+            'notes': 'Отличная книга!'
+        }
+        serializer = BookReadingDateSerializer(data=data)
+        assert serializer.is_valid()
+        reading_date = serializer.save()
+        assert reading_date.book == book
+        assert str(reading_date.date) == '2024-01-15'
+        assert reading_date.notes == 'Отличная книга!'
 
 
 class TestUserProfileSerializer:

@@ -8,11 +8,13 @@ from .models import (
     Category,
     Author,
     Publisher,
+    Language,
     Book,
     BookAuthor,
     BookImage,
     BookElectronic,
     BookPage,
+    BookReadingDate,
 )
 
 
@@ -82,10 +84,18 @@ class PublisherAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'updated_at']
 
 
+@admin.register(Language)
+class LanguageAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['name', 'code']
+    readonly_fields = ['created_at', 'updated_at']
+
+
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
-    list_display = ['title', 'owner', 'category', 'status', 'year', 'created_at']
-    list_filter = ['status', 'category', 'binding_type', 'format', 'condition', 'year', 'created_at']
+    list_display = ['title', 'owner', 'category', 'status', 'year', 'language', 'created_at']
+    list_filter = ['status', 'category', 'binding_type', 'format', 'condition', 'year', 'language', 'created_at']
     search_fields = ['title', 'subtitle', 'isbn', 'owner__username']
     readonly_fields = ['created_at', 'updated_at']
     filter_horizontal = ['authors', 'hashtags']
@@ -99,7 +109,7 @@ class BookAdmin(admin.ModelAdmin):
             'fields': ('owner', 'library')
         }),
         ('Издательская информация', {
-            'fields': ('publication_place', 'publisher', 'year', 'year_approx', 'pages_info')
+            'fields': ('publication_place', 'publisher', 'year', 'year_approx', 'pages_info', 'circulation', 'language')
         }),
         ('Физические характеристики', {
             'fields': ('binding_type', 'binding_details', 'format')
@@ -149,3 +159,12 @@ class BookPageAdmin(admin.ModelAdmin):
     search_fields = ['book__title']
     readonly_fields = ['created_at', 'processed_at']
     ordering = ['book', 'page_number']
+
+
+@admin.register(BookReadingDate)
+class BookReadingDateAdmin(admin.ModelAdmin):
+    list_display = ['book', 'date', 'created_at']
+    list_filter = ['date', 'created_at']
+    search_fields = ['book__title', 'notes']
+    readonly_fields = ['created_at', 'updated_at']
+    ordering = ['book', '-date']
