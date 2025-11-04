@@ -20,6 +20,14 @@ const MainPage = () => {
   const [books, setBooks] = useState([]);
   // const [allBooks, setAllBooks] = useState([]); // Удалено - используем books_count из API
   const [loading, setLoading] = useState(true);
+  // Состояние пагинации
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationInfo, setPaginationInfo] = useState({
+    count: 0,
+    next: null,
+    previous: null,
+    paginated: false
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
     status: null,
@@ -52,8 +60,13 @@ const MainPage = () => {
   }, [selectedCategory]);
 
   useEffect(() => {
-    loadBooks();
+    // Сбрасываем страницу на 1 при изменении фильтров
+    setCurrentPage(1);
   }, [selectedCategory, selectedHashtag, searchQuery, filters, selectedLibraries]);
+
+  useEffect(() => {
+    loadBooks();
+  }, [selectedCategory, selectedHashtag, searchQuery, filters, selectedLibraries, currentPage]);
 
   const loadData = async () => {
     try {
@@ -117,22 +130,10 @@ const MainPage = () => {
       return stats;
     }
     
-    // Используем уже загруженные книги из состояния books (они уже отфильтрованы)
-    let booksToCount = books;
-
-    // Фильтруем книги по выбранной категории
-    if (selectedCategory) {
-      booksToCount = booksToCount.filter(book => {
-        // Проверяем все возможные варианты поля категории
-        const bookCategoryId = book.category || book.category_id;
-        // Если выбрана родительская категория с подкатегориями, считаем книги из всех её подкатегорий
-        if (selectedCategory.subcategories && selectedCategory.subcategories.length > 0) {
-          const subcategoryIds = selectedCategory.subcategories.map(sub => sub.id);
-          return bookCategoryId === selectedCategory.id || subcategoryIds.includes(bookCategoryId);
-        }
-        return bookCategoryId === selectedCategory.id;
-      });
-    }
+    // Используем уже загруженные книги из состояния books
+    // Они УЖЕ отфильтрованы бэкендом по категории, библиотекам и другим фильтрам
+    // Не нужно фильтровать их снова на клиенте!
+    const booksToCount = books;
 
     booksToCount.forEach(book => {
       // Статусы
@@ -180,16 +181,9 @@ const MainPage = () => {
       params.libraries = selectedLibraries;
       
       if (selectedCategory) {
-        // Если выбрана родительская категория с подкатегориями, фильтруем по всем
-        if (selectedCategory.subcategories && selectedCategory.subcategories.length > 0) {
-          // Фильтруем по родительской категории или её подкатегориям
-          const categoryIds = [selectedCategory.id, ...selectedCategory.subcategories.map(sub => sub.id)];
-          // API может не поддерживать множественный фильтр, используем фильтр по родительской
-          // или можно сделать несколько запросов и объединить
-          params.category = selectedCategory.id;
-        } else {
-          params.category = selectedCategory.id;
-        }
+        // Бэкенд сам обрабатывает родительские категории с подкатегориями
+        // Просто передаем ID категории
+        params.category = selectedCategory.id;
       }
       
       if (searchQuery) {
@@ -201,67 +195,41 @@ const MainPage = () => {
       }
 
       if (selectedHashtag) {
-        // Фильтрация по хэштегу будет на клиенте, так как API может не поддерживать это напрямую
+        // Фильтрация по хэштегу через бэкенд (ID)
+        params.hashtag = selectedHashtag.id;
       }
       
       if (filters.has_reviews) {
-        // Нужно будет добавить этот фильтр на бэкенде или фильтровать на клиенте
+        params.has_reviews = 'true';
       }
       
       if (filters.has_electronic) {
-        // Нужно будет добавить этот фильтр на бэкенде
-      }
-      
-      // Увеличиваем размер страницы для лучшей производительности
-      params.page_size = 100;
-      const data = await booksAPI.getAll(params);
-      // Обработка пагинации: если есть results, используем их, иначе весь ответ
-      let booksList = Array.isArray(data) ? data : (data.results || []);
-      
-      // Если есть пагинация и мы используем фильтры, загружаем все страницы
-      if (data.next && (filters.status || filters.has_reviews || filters.has_electronic || filters.recently_added)) {
-        let page = 2;
-        let hasMore = true;
-        while (hasMore) {
-          const nextParams = { ...params, page, page_size: 100 };
-          const nextData = await booksAPI.getAll(nextParams);
-          if (Array.isArray(nextData)) {
-            booksList = [...booksList, ...nextData];
-            hasMore = false;
-          } else {
-            const nextResults = nextData.results || [];
-            booksList = [...booksList, ...nextResults];
-            hasMore = !!nextData.next;
-            page++;
-          }
-        }
-      }
-      
-      // Клиентская фильтрация для полей, которые пока не поддерживаются на бэкенде
-      if (filters.has_electronic) {
-        booksList = booksList.filter(book => book.electronic_versions_count > 0);
-      }
-      
-      if (filters.has_reviews) {
-        booksList = booksList.filter(book => book.reviews_count > 0);
+        params.has_electronic = 'true';
       }
       
       if (filters.recently_added) {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        booksList = booksList.filter(book => {
-          const createdDate = new Date(book.created_at);
-          return createdDate >= sevenDaysAgo;
-        });
-      }
-
-      // Фильтрация по хэштегу
-      if (selectedHashtag) {
-        booksList = booksList.filter(book => {
-          return book.hashtags && book.hashtags.some(ht => ht.id === selectedHashtag.id);
-        });
+        params.recently_added = 'true';
       }
       
+      // Добавляем параметр page для пагинации
+      if (currentPage > 1) {
+        params.page = currentPage;
+      }
+      
+      // Не указываем page_size - пагинация применяется автоматически если книг > 30
+      // Бэкенд сам решает применять пагинацию или нет
+      const data = await booksAPI.getAll(params);
+      
+      // Сохраняем информацию о пагинации
+      setPaginationInfo({
+        count: data.count || 0,
+        next: data.next || null,
+        previous: data.previous || null,
+        paginated: data.paginated || false
+      });
+      
+      // Отображаем только текущую страницу
+      const booksList = data.results || [];
       setBooks(booksList);
     } catch (error) {
       console.error('Ошибка загрузки книг:', error);
@@ -331,6 +299,32 @@ const MainPage = () => {
             loading={loading}
             onAddBook={handleAddBook}
           />
+          
+          {/* Пагинация */}
+          {paginationInfo.paginated && paginationInfo.count > 0 && (
+            <div className="pagination">
+              <div className="pagination-info">
+                Страница {currentPage} из {Math.ceil(paginationInfo.count / 30)} 
+                ({paginationInfo.count} книг всего)
+              </div>
+              <div className="pagination-controls">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={!paginationInfo.previous || currentPage === 1}
+                  className="pagination-button"
+                >
+                  ← Предыдущая
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  disabled={!paginationInfo.next || currentPage >= Math.ceil(paginationInfo.count / 30)}
+                  className="pagination-button"
+                >
+                  Следующая →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

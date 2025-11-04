@@ -234,6 +234,12 @@ GET /api/books/
 - `price_max` - максимальная цена
 - `search` - поиск по названию, подзаголовку, ISBN, автору
 - `ordering` - сортировка (по умолчанию: `-created_at`)
+- `page` - номер страницы (применяется автоматически если книг > 30)
+
+**Пагинация:**
+- Если книг ≤ 30: возвращается полный список, `paginated: false`
+- Если книг > 30: применяется пагинация по 30 книг на страницу, `paginated: true`
+- Используйте параметр `page` для перехода на следующую страницу
 
 **Примеры:**
 ```
@@ -241,6 +247,29 @@ GET /api/books/?category=test&year_min=2020&year_max=2023
 GET /api/books/?author=1&binding_type=hard
 GET /api/books/?search=война&ordering=title
 GET /api/books/?libraries=1&libraries=2  # Книги из библиотек с ID 1 и 2
+GET /api/books/?page=2  # Вторая страница (если книг > 30)
+```
+
+**Формат ответа с пагинацией:**
+
+Если книг ≤ 30:
+```json
+{
+  "count": 25,
+  "results": [...],
+  "paginated": false
+}
+```
+
+Если книг > 30:
+```json
+{
+  "count": 684,
+  "next": "http://localhost:8000/api/books/?page=2",
+  "previous": null,
+  "results": [...],
+  "paginated": true
+}
 ```
 
 ### Создание книги

@@ -5,15 +5,15 @@ import os
 from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Count, Prefetch
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
-from ..models import Book, BookPage, BookImage, BookElectronic, Category
+from ..models import Book, BookPage, BookImage, BookElectronic, Category, Hashtag
 from ..serializers import (
-    BookSerializer, BookDetailSerializer,
+    BookSerializer, BookListSerializer, BookDetailSerializer,
     BookCreateSerializer, BookUpdateSerializer,
     BookPageSerializer, BookImageSerializer,
     BookElectronicSerializer, HashtagSerializer, LibrarySerializer
@@ -25,19 +25,26 @@ from ..services.hashtag_service import HashtagService
 from ..services.transfer_service import TransferService
 from ..exceptions import HashtagLimitExceeded, TransferError
 from ..constants import MIN_IMAGE_ORDER, MAX_IMAGE_ORDER
+from ..pagination import ConditionalBookPagination
 
 
 class BookViewSet(viewsets.ModelViewSet):
     """API для книг"""
     queryset = Book.objects.select_related(
-        'category', 'publisher', 'owner', 'library'
+        'category', 'publisher', 'owner', 'library', 'language'
     ).prefetch_related(
-        'authors', 'images', 'electronic_versions', 'pages_set',
-        'hashtags', 'reviews'
+        'authors',
+        Prefetch('hashtags', queryset=Hashtag.objects.select_related('creator'))
+    ).annotate(
+        reviews_count_annotated=Count('reviews', distinct=True),
+        electronic_versions_count_annotated=Count('electronic_versions', distinct=True),
+        images_count_annotated=Count('images', distinct=True)
     )
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     # Разрешаем чтение всем, редактирование только владельцам
     permission_classes = [IsOwnerOrReadOnly]
+    # Используем условную пагинацию: если книг > 30, применяется пагинация
+    pagination_class = ConditionalBookPagination
     
     def get_permissions(self):
         """
@@ -56,7 +63,30 @@ class BookViewSet(viewsets.ModelViewSet):
             return BookCreateSerializer
         elif self.action in ['update', 'partial_update']:
             return BookUpdateSerializer
+        elif self.action == 'list':
+            # Используем упрощенный сериализатор для списка для лучшей производительности
+            from ..serializers import BookListSerializer
+            return BookListSerializer
         return BookSerializer
+    
+    def list(self, request, *args, **kwargs):
+        """
+        Переопределяем метод list для явного использования пагинатора
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            # Пагинация применена
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        # Пагинация не применена (книг <= 30) - возвращаем все книги
+        serializer = self.get_serializer(queryset, many=True)
+        # Используем пагинатор для формирования ответа даже без пагинации
+        paginator = self.pagination_class()
+        paginator.count = queryset.count()
+        return paginator.get_paginated_response(serializer.data)
     
     def create(self, request, *args, **kwargs):
         """Создание книги с авторами и хэштегами"""
@@ -70,7 +100,18 @@ class BookViewSet(viewsets.ModelViewSet):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     def get_queryset(self):
+        """Оптимизированный queryset с аннотациями и фильтрацией"""
         queryset = super().get_queryset()
+        
+        # Для detail view загружаем все связи
+        if self.action == 'retrieve':
+            queryset = queryset.prefetch_related(
+                'images', 'electronic_versions', 'pages_set',
+                'reviews', 'reading_dates'
+            )
+        # Для list НЕ загружаем изображения через prefetch - это слишком медленно для большого количества книг
+        # Изображения будут загружены лениво через сериализатор только для первой страницы
+        # Для остальных страниц images будет пустым массивом (карточки будут без изображений)
         
         # Фильтрация по категории (slug или ID)
         category = self.request.query_params.get('category')
@@ -107,17 +148,38 @@ class BookViewSet(viewsets.ModelViewSet):
                     queryset = queryset.filter(library_id__in=library_ids)
             except (ValueError, TypeError):
                 # Если не удалось распарсить как ID, пробуем фильтровать по имени
-                queryset = queryset.filter(library__name__in=libraries).distinct()
+                queryset = queryset.filter(library__name__in=libraries)
         
         # Фильтрация по статусу
         status_filter = self.request.query_params.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         
-        # Фильтрация по хэштегу
+        # Фильтрация по хэштегу (ID или имя)
         hashtag = self.request.query_params.get('hashtag')
         if hashtag:
-            queryset = queryset.filter(hashtags__name__icontains=hashtag).distinct()
+            try:
+                hashtag_id = int(hashtag)
+                queryset = queryset.filter(hashtags__id=hashtag_id)
+            except ValueError:
+                queryset = queryset.filter(hashtags__name__icontains=hashtag)
+        
+        # Фильтрация по наличию отзывов
+        has_reviews = self.request.query_params.get('has_reviews')
+        if has_reviews and has_reviews.lower() in ('true', '1', 'yes'):
+            queryset = queryset.filter(reviews__isnull=False)
+        
+        # Фильтрация по наличию электронных версий
+        has_electronic = self.request.query_params.get('has_electronic')
+        if has_electronic and has_electronic.lower() in ('true', '1', 'yes'):
+            queryset = queryset.filter(electronic_versions__isnull=False)
+        
+        # Фильтрация по недавно добавленным (за последние 7 дней)
+        recently_added = self.request.query_params.get('recently_added')
+        if recently_added and recently_added.lower() in ('true', '1', 'yes'):
+            from datetime import timedelta
+            seven_days_ago = timezone.now() - timedelta(days=7)
+            queryset = queryset.filter(created_at__gte=seven_days_ago)
         
         # Фильтрация по автору
         author = self.request.query_params.get('author')
@@ -159,7 +221,7 @@ class BookViewSet(viewsets.ModelViewSet):
                 Q(subtitle__icontains=search) |
                 Q(isbn__icontains=search) |
                 Q(authors__full_name__icontains=search)
-            ).distinct()
+            )
         
         # Фильтрация по типу переплета
         binding_type = self.request.query_params.get('binding_type')
@@ -193,6 +255,19 @@ class BookViewSet(viewsets.ModelViewSet):
         # Сортировка
         ordering = self.request.query_params.get('ordering', '-created_at')
         queryset = queryset.order_by(ordering)
+        
+        # Применяем distinct() только в конце, если были фильтры по ManyToMany
+        # Это нужно для избежания дубликатов при фильтрации по authors, hashtags и т.д.
+        # Проверяем все возможные фильтры, которые могут вызвать дубликаты
+        has_manytomany_filters = (
+            self.request.query_params.get('search') or
+            self.request.query_params.get('hashtag') or
+            self.request.query_params.get('author') or
+            self.request.query_params.get('has_reviews') or
+            self.request.query_params.get('has_electronic')
+        )
+        if has_manytomany_filters:
+            queryset = queryset.distinct()
         
         return queryset
     

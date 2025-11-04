@@ -72,15 +72,22 @@ class LibrarySerializer(serializers.ModelSerializer):
 
 class HashtagSerializer(serializers.ModelSerializer):
     """Сериализатор хэштега"""
-    creator_username = serializers.CharField(source='creator.username', read_only=True, allow_null=True)
+    creator_username = serializers.SerializerMethodField()
     books_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Hashtag
         fields = ['id', 'name', 'slug', 'creator', 'creator_username', 'books_count', 'created_at']
     
+    def get_creator_username(self, obj):
+        # Используем prefetch_related creator если доступен
+        if obj.creator:
+            return obj.creator.username
+        return None
+    
     def get_books_count(self, obj):
-        return obj.books.count()
+        # Используем аннотацию если есть, иначе возвращаем 0 (не вызываем count() чтобы избежать N+1)
+        return getattr(obj, 'books_count_annotated', 0)
 
 
 class BookReviewSerializer(serializers.ModelSerializer):
@@ -266,6 +273,49 @@ class BookPageSerializer(serializers.ModelSerializer):
         return None
 
 
+class BookListSerializer(serializers.ModelSerializer):
+    """Упрощенный сериализатор книги для списка (минимум данных для быстрой загрузки)"""
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_code = serializers.CharField(source='category.code', read_only=True)
+    category_icon = serializers.CharField(source='category.icon', read_only=True)
+    publisher_name = serializers.CharField(source='publisher.name', read_only=True)
+    owner_username = serializers.CharField(source='owner.username', read_only=True)
+    library_name = serializers.CharField(source='library.name', read_only=True, allow_null=True)
+    language_name = serializers.CharField(source='language.name', read_only=True, allow_null=True)
+    
+    # Упрощенные сериализаторы для авторов и хэштегов
+    authors = serializers.SerializerMethodField()
+    hashtags = serializers.SerializerMethodField()
+    
+    images_count = serializers.IntegerField(read_only=True, source='images_count_annotated')
+    reviews_count = serializers.IntegerField(read_only=True, source='reviews_count_annotated')
+    electronic_versions_count = serializers.IntegerField(read_only=True, source='electronic_versions_count_annotated')
+    
+    def get_authors(self, obj):
+        # Возвращаем только имена авторов для списка
+        return [{'id': a.id, 'full_name': a.full_name} for a in obj.authors.all()[:3]]
+    
+    def get_hashtags(self, obj):
+        # Возвращаем только имена хэштегов для списка
+        return [{'id': h.id, 'name': h.name, 'slug': h.slug} for h in obj.hashtags.all()]
+    
+    class Meta:
+        model = Book
+        fields = [
+            'id', 'title', 'subtitle', 'category', 'category_name', 'category_code', 'category_icon',
+            'owner', 'owner_username', 'library', 'library_name', 'status',
+            'authors', 'hashtags', 'publication_place', 'publisher', 'publisher_name',
+            'year', 'year_approx', 'pages_info', 'circulation',
+            'language', 'language_name',
+            'binding_type', 'format',
+            'price_rub', 'condition',
+            'seller_code', 'isbn',
+            'images_count', 'reviews_count', 'electronic_versions_count',
+            'created_at', 'updated_at'
+        ]
+        # Убраны поля: description, binding_details, condition_details для уменьшения размера
+
+
 class BookSerializer(serializers.ModelSerializer):
     """Сериализатор книги для списка"""
     category_name = serializers.CharField(source='category.name', read_only=True)
@@ -277,9 +327,16 @@ class BookSerializer(serializers.ModelSerializer):
     language_name = serializers.CharField(source='language.name', read_only=True, allow_null=True)
     authors = AuthorSerializer(many=True, read_only=True)
     hashtags = HashtagSerializer(many=True, read_only=True)
-    images_count = serializers.IntegerField(read_only=True)
-    images = BookImageSerializer(many=True, read_only=True, source='images.all')
-    reviews_count = serializers.IntegerField(source='reviews.count', read_only=True)
+    images_count = serializers.IntegerField(read_only=True, source='images_count_annotated')
+    images = serializers.SerializerMethodField()
+    reviews_count = serializers.IntegerField(read_only=True, source='reviews_count_annotated')
+    electronic_versions_count = serializers.IntegerField(read_only=True, source='electronic_versions_count_annotated')
+    
+    def get_images(self, obj):
+        # Для оптимизации скорости загрузки списка НЕ загружаем изображения
+        # Они могут быть загружены отдельно по требованию через detail endpoint
+        # Это значительно ускоряет загрузку списка книг
+        return []
     
     class Meta:
         model = Book
@@ -292,7 +349,7 @@ class BookSerializer(serializers.ModelSerializer):
             'binding_type', 'binding_details', 'format',
             'price_rub', 'description', 'condition', 'condition_details',
             'seller_code', 'isbn',
-            'images_count', 'images', 'reviews_count',
+            'images_count', 'images', 'reviews_count', 'electronic_versions_count',
             'created_at', 'updated_at'
         ]
 

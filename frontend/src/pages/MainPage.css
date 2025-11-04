@@ -23,6 +23,69 @@
   margin-left: 250px; /* Ширина sidebar */
 }
 
+/* Пагинация */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dark-theme .pagination {
+  background-color: #1e1e1e;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #666;
+}
+
+.dark-theme .pagination-info {
+  color: #aaa;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.pagination-button {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background-color: #667eea;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background-color: #5568d3;
+  transform: translateY(-1px);
+}
+
+.pagination-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.pagination-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dark-theme .pagination-button:disabled {
+  background-color: #444;
+  color: #888;
+}
+
 @media (max-width: 768px) {
   .main-content {
     flex-direction: column;
@@ -31,6 +94,20 @@
   .content-area {
     margin-left: 0;
     margin-top: 0;
+  }
+  
+  .pagination {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .pagination-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .pagination-button {
+    flex: 1;
   }
 }
 
