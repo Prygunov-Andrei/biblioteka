@@ -181,19 +181,22 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
             )
         
         # Используем простой сериализатор для подкатегорий (без вложенности)
-        return [
-            {
-                'id': sub.id,
-                'code': sub.code,
-                'name': sub.name,
-                'slug': sub.slug,
-                'icon': sub.icon,
-                'order': sub.order,
-                # Используем аннотацию если есть, иначе 0 (не вызываем count() чтобы избежать N+1)
-                'books_count': getattr(sub, 'books_count', 0)
-            }
-            for sub in subcategories
-        ]
+        # Фильтруем подкатегории с нулевым количеством книг
+        result = []
+        for sub in subcategories:
+            books_count = getattr(sub, 'books_count', 0)
+            # Показываем только подкатегории с книгами
+            if books_count > 0:
+                result.append({
+                    'id': sub.id,
+                    'code': sub.code,
+                    'name': sub.name,
+                    'slug': sub.slug,
+                    'icon': sub.icon,
+                    'order': sub.order,
+                    'books_count': books_count
+                })
+        return result
     
     def get_books_count(self, obj):
         """Подсчитывает книги включая подкатегории"""

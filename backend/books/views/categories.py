@@ -113,6 +113,21 @@ class CategoryViewSet(viewsets.ModelViewSet):
             Prefetch('subcategories', queryset=subcategories_queryset)
         )
         
+        # Фильтруем категории с нулевым количеством книг
+        # Если библиотеки не указаны, добавляем аннотации для фильтрации
+        if not library_ids:
+            parent_categories = parent_categories.annotate(
+                books_count_annotated=Count('books', distinct=True),
+                subcategories_books_count_annotated=Count('subcategories__books', distinct=True)
+            )
+        
+        # Фильтруем родительские категории: показываем только если есть книги
+        # (либо в самой категории, либо в подкатегориях)
+        from django.db.models import Q
+        parent_categories = parent_categories.filter(
+            Q(books_count_annotated__gt=0) | Q(subcategories_books_count_annotated__gt=0)
+        )
+        
         serializer = CategoryTreeSerializer(
             parent_categories, 
             many=True,
