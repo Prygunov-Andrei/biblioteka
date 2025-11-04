@@ -17,9 +17,9 @@ class TestSyncCategoriesCommand:
     """Тесты команды sync_categories"""
     
     def test_sync_categories(self, db):
-        """Синхронизация категорий"""
+        """Синхронизация категорий из канонического JSON"""
         # Проверяем что категории синхронизируются
-        # (зависит от наличия файла categories.json)
+        # (зависит от наличия файла categories_canonical.json)
         try:
             call_command('sync_categories', stdout=StringIO())
             # Если команда выполнилась без ошибок - ок

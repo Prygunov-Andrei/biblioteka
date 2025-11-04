@@ -73,11 +73,6 @@ python manage.py showmigrations
 python manage.py migrate
 ```
 
-3. Если миграции применены, но таблиц нет:
-```bash
-python manage.py check_db_schema
-```
-
 Подробнее: [Настройка базы данных](../../deployment/database-setup.md)
 
 ---

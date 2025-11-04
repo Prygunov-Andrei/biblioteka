@@ -51,12 +51,45 @@ class CategoryViewSet(viewsets.ModelViewSet):
         Возвращает дерево категорий:
         - Только родительские категории (без parent_category)
         - С вложенными подкатегориями
+        - Поддерживает фильтрацию по библиотекам для подсчета книг
         """
+        from django.db.models import Count, Q
+        from books.models import Book
+        
+        # Получаем список библиотек из query параметра
+        libraries = request.query_params.getlist('libraries') or request.query_params.getlist('library')
+        library_ids = []
+        if libraries:
+            try:
+                library_ids = [int(lib_id) for lib_id in libraries if lib_id]
+            except (ValueError, TypeError):
+                pass
+        
         parent_categories = Category.objects.filter(
             parent_category__isnull=True
         ).order_by('order', 'name')
         
-        serializer = CategoryTreeSerializer(parent_categories, many=True)
+        # Если указаны библиотеки, фильтруем книги для подсчета
+        if library_ids:
+            # Аннотируем количество книг с фильтрацией по библиотекам
+            parent_categories = parent_categories.annotate(
+                books_count=Count(
+                    'books',
+                    filter=Q(books__library_id__in=library_ids),
+                    distinct=True
+                ),
+                subcategories_books_count=Count(
+                    'subcategories__books',
+                    filter=Q(subcategories__books__library_id__in=library_ids),
+                    distinct=True
+                )
+            )
+        
+        serializer = CategoryTreeSerializer(
+            parent_categories, 
+            many=True,
+            context={'request': request, 'library_ids': library_ids}
+        )
         return Response(serializer.data)
     
     @action(detail=True, methods=['get'])

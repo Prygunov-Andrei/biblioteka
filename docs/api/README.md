@@ -32,6 +32,8 @@ http://localhost:8000/api/
 
 ### 1. Categories (Категории)
 - `GET /api/categories/` — список категорий
+- `GET /api/categories/tree/` — дерево категорий с подкатегориями (оптимизировано)
+  - Параметр `libraries` — фильтрация подсчета книг по библиотекам
 - `POST /api/categories/` — создание категории
 - `GET /api/categories/{slug}/` — детали категории
 - `PUT/PATCH /api/categories/{slug}/` — обновление
@@ -97,6 +99,7 @@ http://localhost:8000/api/
 - `category` — фильтр по категории (slug или ID)
 - `author` — фильтр по автору (ID или имя)
 - `publisher` — фильтр по издательству (ID или название)
+- `libraries` — фильтр по библиотекам (список ID, например: `?libraries=1&libraries=2`)
 - `year_min`, `year_max` — диапазон годов издания
 - `binding_type` — тип переплета
 - `format` — формат книги
@@ -121,5 +124,5 @@ http://localhost:8000/api/
 
 ---
 
-**Последнее обновление:** 2025-11-03
+**Последнее обновление:** 2025-01-15 (оптимизация подсчета книг в категориях)
 

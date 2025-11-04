@@ -18,7 +18,7 @@ const MainPage = () => {
   const [categories, setCategories] = useState([]);
   const [hashtags, setHashtags] = useState([]);
   const [books, setBooks] = useState([]);
-  const [allBooks, setAllBooks] = useState([]); // Все книги для статистики
+  // const [allBooks, setAllBooks] = useState([]); // Удалено - используем books_count из API
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
@@ -40,11 +40,12 @@ const MainPage = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedLibraries]); // Перезагружаем категории при изменении библиотек
 
-  useEffect(() => {
-    loadAllBooksForStats(); // Загружаем все книги для статистики (без фильтров)
-  }, []);
+  // Удаляем загрузку всех книг для статистики - теперь используем books_count из API категорий
+  // useEffect(() => {
+  //   loadAllBooksForStats(); // Загружаем все книги для статистики (без фильтров)
+  // }, []);
 
   useEffect(() => {
     loadHashtags();
@@ -56,7 +57,12 @@ const MainPage = () => {
 
   const loadData = async () => {
     try {
-      const categoriesData = await categoriesAPI.getTree();
+      // Передаем выбранные библиотеки для правильного подсчета книг
+      const params = {};
+      if (selectedLibraries.length > 0) {
+        params.libraries = selectedLibraries;
+      }
+      const categoriesData = await categoriesAPI.getTree(params);
       // Обработка пагинации: если есть results, используем их, иначе весь ответ
       setCategories(Array.isArray(categoriesData) ? categoriesData : (categoriesData.results || []));
     } catch (error) {
@@ -75,73 +81,20 @@ const MainPage = () => {
     }
   };
 
-  const loadAllBooksForStats = async () => {
-    try {
-      // Загружаем все книги для статистики (с пагинацией, увеличиваем размер страницы)
-      // Загружаем без фильтра по библиотекам, чтобы иметь полную картину для подсчета
-      let allBooksList = [];
-      let page = 1;
-      let hasMore = true;
-      
-      while (hasMore) {
-        const params = { page, page_size: 100 }; // Увеличиваем размер страницы
-        const data = await booksAPI.getAll(params);
-        
-        if (Array.isArray(data)) {
-          allBooksList = [...allBooksList, ...data];
-          hasMore = false;
-        } else {
-          const results = data.results || [];
-          allBooksList = [...allBooksList, ...results];
-          hasMore = !!data.next; // Проверяем наличие следующей страницы
-          page++;
-        }
-      }
-      
-      setAllBooks(allBooksList);
-    } catch (error) {
-      console.error('Ошибка загрузки статистики:', error);
-    }
-  };
+  // Удалена функция loadAllBooksForStats - теперь используем books_count из API категорий
 
-  // Вычисляем количество книг с учетом выбранных библиотек для категорий
-  const calculateCategoryBooksCount = (category) => {
-    if (selectedLibraries.length === 0) {
-      return 0;
-    }
-    
-    // Фильтруем книги по выбранным библиотекам
-    let filteredBooks = allBooks.filter(book => {
-      const bookLibraryId = book.library || book.library_id;
-      return bookLibraryId && selectedLibraries.includes(bookLibraryId);
-    });
-    
-    // Фильтруем по категории
-    if (category.subcategories && category.subcategories.length > 0) {
-      // Родительская категория - считаем книги из всех подкатегорий
-      const subcategoryIds = category.subcategories.map(sub => sub.id);
-      return filteredBooks.filter(book => {
-        const bookCategoryId = book.category || book.category_id;
-        return bookCategoryId === category.id || subcategoryIds.includes(bookCategoryId);
-      }).length;
-    } else {
-      // Обычная категория
-      return filteredBooks.filter(book => {
-        const bookCategoryId = book.category || book.category_id;
-        return bookCategoryId === category.id;
-      }).length;
-    }
-  };
+  // Удалено calculateCategoryBooksCount - теперь используем books_count из API категорий напрямую
 
   // Общее количество книг с учетом выбранных библиотек
   const getFilteredBooksCount = () => {
     if (selectedLibraries.length === 0) {
       return 0;
     }
-    return allBooks.filter(book => {
-      const bookLibraryId = book.library || book.library_id;
-      return bookLibraryId && selectedLibraries.includes(bookLibraryId);
-    }).length;
+    // Суммируем books_count из всех родительских категорий
+    // Каждая категория уже включает книги из подкатегорий в books_count
+    return categories.reduce((total, category) => {
+      return total + (category.books_count || 0);
+    }, 0);
   };
 
   const calculateStats = () => {
@@ -164,10 +117,8 @@ const MainPage = () => {
       return stats;
     }
     
-    let booksToCount = allBooks.filter(book => {
-      const bookLibraryId = book.library || book.library_id;
-      return bookLibraryId && selectedLibraries.includes(bookLibraryId);
-    });
+    // Используем уже загруженные книги из состояния books (они уже отфильтрованы)
+    let booksToCount = books;
 
     // Фильтруем книги по выбранной категории
     if (selectedCategory) {
@@ -368,7 +319,6 @@ const MainPage = () => {
                 onCategorySelect={handleCategorySelect}
                 onHashtagSelect={handleHashtagSelect}
                 totalBooksCount={getFilteredBooksCount()}
-                calculateCategoryBooksCount={calculateCategoryBooksCount}
               />
         <div className="content-area">
           <Filters

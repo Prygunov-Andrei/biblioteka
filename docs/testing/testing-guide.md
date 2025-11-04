@@ -30,7 +30,6 @@ tests/
 │
 ├── fixtures/                # Тестовые данные
 │   ├── factories.py        # Factory Boy фабрики
-│   ├── categories.json     # Тестовые категории
 │   ├── sample_books.json   # Примеры книг
 │   └── sample_images/      # Тестовые изображения
 │

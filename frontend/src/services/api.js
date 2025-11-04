@@ -150,9 +150,18 @@ export const categoriesAPI = {
     const response = await apiClient.get('/categories/');
     return response.data;
   },
-  getTree: async () => {
+  getTree: async (params = {}) => {
     // Возвращает дерево категорий (родительские с подкатегориями)
-    const response = await apiClient.get('/categories/tree/');
+    // Поддерживает фильтрацию по библиотекам для подсчета книг
+    const queryParams = new URLSearchParams();
+    if (params.libraries && params.libraries.length > 0) {
+      params.libraries.forEach(libId => {
+        queryParams.append('libraries', libId);
+      });
+    }
+    const queryString = queryParams.toString();
+    const url = `/categories/tree/${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get(url);
     return response.data;
   },
   getBySlug: async (slug) => {

@@ -37,12 +37,7 @@ python manage.py showmigrations
 
 **Решение:**
 
-1. Проверить какие таблицы отсутствуют:
-```bash
-python manage.py check_db_schema
-```
-
-2. Если таблицы отсутствуют, но миграция помечена как примененная:
+1. Если таблицы отсутствуют, но миграция помечена как примененная:
 ```bash
 # Откатить миграцию (пометить как непримененную)
 python manage.py migrate books 0004_alter_book_binding_details_and_more --fake
@@ -52,8 +47,8 @@ python manage.py migrate books 0005_add_user_system
 ```
 
 3. Если миграция не может быть применена из-за конфликтов (например, колонки уже существуют):
-   - Используйте команду `check_db_schema` для автоматического создания отсутствующих таблиц
-   - Затем пометьте миграцию как примененную: `python manage.py migrate books 0005_add_user_system --fake`
+   - Откатите миграцию и примените заново (см. пункт выше)
+   - Или пометьте миграцию как примененную: `python manage.py migrate books 0005_add_user_system --fake`
 
 ### Проблема: Ошибка "relation does not exist"
 
@@ -93,6 +88,5 @@ python manage.py migrate
 ```bash
 # В вашем CI/CD скрипте
 python manage.py migrate --check  # Проверяет, что все миграции применены
-python manage.py check_db_schema # Проверяет наличие всех таблиц
 ```
 

@@ -135,7 +135,22 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
     
     def get_subcategories(self, obj):
         """Возвращает подкатегории"""
+        from django.db.models import Count, Q
+        from books.models import Book
+        
+        library_ids = self.context.get('library_ids', [])
         subcategories = obj.subcategories.all().order_by('order', 'name')
+        
+        # Если указаны библиотеки, фильтруем книги для подсчета
+        if library_ids:
+            subcategories = subcategories.annotate(
+                books_count=Count(
+                    'books',
+                    filter=Q(books__library_id__in=library_ids),
+                    distinct=True
+                )
+            )
+        
         # Используем простой сериализатор для подкатегорий (без вложенности)
         return [
             {
@@ -145,18 +160,23 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
                 'slug': sub.slug,
                 'icon': sub.icon,
                 'order': sub.order,
-                'books_count': sub.books.count()
+                'books_count': getattr(sub, 'books_count', sub.books.count()) if library_ids else sub.books.count()
             }
             for sub in subcategories
         ]
     
     def get_books_count(self, obj):
         """Подсчитывает книги включая подкатегории"""
-        count = obj.books.count()
-        # Добавляем книги из всех подкатегорий
-        for subcategory in obj.subcategories.all():
-            count += subcategory.books.count()
-        return count
+        library_ids = self.context.get('library_ids', [])
+        
+        if library_ids:
+            # Используем аннотированные значения если они есть
+            count = getattr(obj, 'books_count', 0)
+            subcategories_count = getattr(obj, 'subcategories_books_count', 0)
+            return count + subcategories_count
+        else:
+            # Если библиотеки не указаны, возвращаем 0
+            return 0
 
 
 class AuthorSerializer(serializers.ModelSerializer):

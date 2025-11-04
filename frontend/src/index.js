@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { applyTheme, getTheme } from './utils/theme';
-import reportWebVitals from './reportWebVitals';
 
 // Применяем сохраненную тему при загрузке
 applyTheme(getTheme());
@@ -14,8 +13,3 @@ root.render(
     <App />
   </React.StrictMode>
 );
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();

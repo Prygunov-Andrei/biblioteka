@@ -5,7 +5,7 @@
 ## Структура
 
 - `factories.py` — Factory Boy фабрики для создания тестовых объектов
-- `categories.json` — примеры категорий для тестов
+- Категории загружаются из `books/data/categories_canonical.json` через команду `sync_categories`
 - `sample_books.json` — примеры книг для тестов
 - `sample_images/` — тестовые изображения для тестов обработки документов
 
@@ -32,9 +32,8 @@ books = BookFactory.create_batch(10)
 import json
 from pathlib import Path
 
-# Загрузка категорий
-categories_path = Path(__file__).parent / 'categories.json'
-with open(categories_path) as f:
-    categories_data = json.load(f)
+# Категории загружаются из базы данных через модель Category
+from books.models import Category
+categories = Category.objects.all()
 ```
 
