@@ -610,6 +610,13 @@ class Book(models.Model):
     def images_count(self):
         """Количество изображений"""
         return self.images.count()
+    
+    @property
+    def average_rating(self):
+        """Средний рейтинг книги из всех отзывов с оценками"""
+        from django.db.models import Avg
+        result = self.reviews.exclude(rating__isnull=True).aggregate(Avg('rating'))
+        return round(result['rating__avg'], 2) if result['rating__avg'] else None
 
 
 class BookAuthor(models.Model):

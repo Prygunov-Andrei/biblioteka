@@ -283,5 +283,31 @@ export const librariesAPI = {
   },
 };
 
+// API методы для отзывов
+export const reviewsAPI = {
+  createOrUpdate: async (bookId, reviewData) => {
+    const response = await apiClient.post('/book-reviews/', {
+      book: bookId,
+      ...reviewData
+    });
+    return response.data;
+  },
+  update: async (reviewId, reviewData) => {
+    // Используем PATCH для частичного обновления (не требуем все поля)
+    const response = await apiClient.patch(`/book-reviews/${reviewId}/`, reviewData);
+    return response.data;
+  },
+  delete: async (reviewId) => {
+    const response = await apiClient.delete(`/book-reviews/${reviewId}/`);
+    return response.data;
+  },
+  getByBook: async (bookId) => {
+    const response = await apiClient.get('/book-reviews/', {
+      params: { book: bookId }
+    });
+    return response.data;
+  }
+};
+
 export default apiClient;
 

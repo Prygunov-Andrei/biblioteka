@@ -11,7 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
-from ..models import Book, BookPage, BookImage, BookElectronic, Category, Hashtag
+from ..models import Book, BookPage, BookImage, BookElectronic, Category, Hashtag, BookReview
 from ..serializers import (
     BookSerializer, BookListSerializer, BookDetailSerializer,
     BookCreateSerializer, BookUpdateSerializer,
@@ -107,7 +107,8 @@ class BookViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             queryset = queryset.prefetch_related(
                 'images', 'electronic_versions', 'pages_set',
-                'reviews', 'reading_dates'
+                Prefetch('reviews', queryset=BookReview.objects.select_related('user').order_by('-created_at')),
+                'reading_dates'
             )
         # Для list загружаем обложку (cover_page) и первую страницу каждой книги для отображения в карточке
         elif self.action == 'list':

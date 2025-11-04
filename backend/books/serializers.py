@@ -327,6 +327,11 @@ class BookListSerializer(serializers.ModelSerializer):
     first_page_url = serializers.SerializerMethodField()
     reviews_count = serializers.IntegerField(read_only=True, source='reviews_count_annotated')
     electronic_versions_count = serializers.IntegerField(read_only=True, source='electronic_versions_count_annotated')
+    average_rating = serializers.SerializerMethodField()
+    
+    def get_average_rating(self, obj):
+        """Возвращает средний рейтинг книги"""
+        return obj.average_rating
     
     def get_authors(self, obj):
         # Возвращаем только имена авторов для списка
@@ -377,6 +382,7 @@ class BookListSerializer(serializers.ModelSerializer):
             'price_rub', 'condition',
             'seller_code', 'isbn',
             'images_count', 'first_page_url', 'reviews_count', 'electronic_versions_count',
+            'average_rating',
             'created_at', 'updated_at'
         ]
         # Убраны поля: description, binding_details, condition_details для уменьшения размера
@@ -456,6 +462,11 @@ class BookDetailSerializer(BookSerializer):
     pages = serializers.SerializerMethodField()
     reviews = BookReviewSerializer(many=True, read_only=True)
     reading_dates = BookReadingDateSerializer(many=True, read_only=True, source='reading_dates.all')
+    average_rating = serializers.SerializerMethodField()
+    
+    def get_average_rating(self, obj):
+        """Возвращает средний рейтинг книги"""
+        return obj.average_rating
     
     def get_pages(self, obj):
         """Получаем страницы, отсортированные по номеру страницы"""
@@ -469,7 +480,7 @@ class BookDetailSerializer(BookSerializer):
         return BookPageSerializer(pages, many=True, context=self.context).data
     
     class Meta(BookSerializer.Meta):
-        fields = BookSerializer.Meta.fields + ['electronic_versions', 'pages', 'reviews', 'reading_dates']
+        fields = BookSerializer.Meta.fields + ['electronic_versions', 'pages', 'reviews', 'reading_dates', 'average_rating']
 
 
 class BookCreateSerializer(serializers.ModelSerializer):

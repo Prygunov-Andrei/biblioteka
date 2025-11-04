@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { booksAPI } from '../services/api';
+import { booksAPI, reviewsAPI } from '../services/api';
+import ReviewItem from './ReviewItem';
+import StarRating from './StarRating';
+import EditReviewModal from './EditReviewModal';
+import ConfirmModal from './ConfirmModal';
 import './BookDetailModal.css';
 
 const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete }) => {
@@ -7,13 +11,38 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [editingReview, setEditingReview] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   useEffect(() => {
     if (isOpen && bookId) {
       loadBookDetails();
+      loadCurrentUser();
       setSelectedPageIndex(0); // Сбрасываем выбранную страницу при открытии
     }
   }, [isOpen, bookId]);
+
+  const loadCurrentUser = async () => {
+    try {
+      // Пытаемся получить ID текущего пользователя из токена или через API
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        // Простой способ - декодировать JWT токен (только для получения user_id)
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.user_id) {
+            setCurrentUserId(payload.user_id);
+          }
+        } catch (e) {
+          // Если не удалось декодировать, пробуем через API
+          // Можно добавить endpoint для получения текущего пользователя
+        }
+      }
+    } catch (err) {
+      console.error('Ошибка получения текущего пользователя:', err);
+    }
+  };
 
   const loadBookDetails = async () => {
     try {
@@ -61,6 +90,74 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
     if (onDelete && book) {
       onDelete(book);
     }
+  };
+
+  const handleEditReview = (review) => {
+    setEditingReview(review);
+  };
+
+  const handleDeleteReview = (reviewId) => {
+    // Показываем модальное окно подтверждения
+    setConfirmDelete({
+      reviewId,
+      message: 'Вы уверены, что хотите удалить этот отзыв?'
+    });
+  };
+
+  const handleConfirmDeleteReview = async () => {
+    if (!confirmDelete) return;
+    
+    try {
+      await reviewsAPI.delete(confirmDelete.reviewId);
+      setConfirmDelete(null);
+      // Перезагружаем данные книги
+      await loadBookDetails();
+    } catch (err) {
+      console.error('Ошибка удаления отзыва:', err);
+      setConfirmDelete(null);
+      // Показываем ошибку через модальное окно
+      setConfirmDelete({
+        error: true,
+        message: 'Не удалось удалить отзыв. Попробуйте позже.'
+      });
+    }
+  };
+
+  const handleCancelDeleteReview = () => {
+    setConfirmDelete(null);
+  };
+
+  const handleSaveReview = async (reviewData) => {
+    if (!book || !book.id) {
+      console.error('Книга не загружена');
+      return;
+    }
+    try {
+      if (editingReview && editingReview.id) {
+        // Обновление существующего отзыва
+        // При обновлении не отправляем book, так как он не может измениться
+        await reviewsAPI.update(editingReview.id, reviewData);
+      } else {
+        // Создание нового отзыва
+        await reviewsAPI.createOrUpdate(book.id, reviewData);
+      }
+      setEditingReview(null);
+      // Перезагружаем данные книги
+      await loadBookDetails();
+    } catch (err) {
+      console.error('Ошибка сохранения отзыва:', err);
+      console.error('Детали ошибки:', err.response?.data);
+      const errorMessage = err.response?.data?.error || err.response?.data?.detail || 'Не удалось сохранить отзыв';
+      // Показываем ошибку через модальное окно
+      setConfirmDelete({
+        error: true,
+        message: errorMessage
+      });
+    }
+  };
+
+  const handleCancelEditReview = () => {
+    setEditingReview(null);
   };
 
   const handleBackdropClick = (e) => {
@@ -445,7 +542,6 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
 
               {/* Связанные данные */}
               {((book.hashtags && book.hashtags.length > 0) || 
-                (book.reviews_count > 0) ||
                 (book.reading_dates && book.reading_dates.length > 0)) && (
                 <section className="book-detail-section">
                   {book.hashtags && book.hashtags.length > 0 && (
@@ -456,14 +552,6 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
                           if (typeof h === 'string') return h;
                           return h.name || h.slug || h;
                         }).join(', ')}
-                      </span>
-                    </div>
-                  )}
-                  {(book.reviews_count > 0 || (book.reviews && book.reviews.length > 0)) && (
-                    <div className="book-detail-field book-detail-field-full">
-                      <span className="book-detail-label">Отзывы:</span>
-                      <span className="book-detail-value">
-                        {book.reviews_count || (book.reviews ? book.reviews.length : 0)} шт.
                       </span>
                     </div>
                   )}
@@ -537,6 +625,72 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
                   </div>
                 </section>
               )}
+
+              {/* Отзывы */}
+              <section className="book-detail-section book-detail-section-reviews">
+                <div className="book-detail-field book-detail-field-full">
+                  <div className="book-detail-reviews-header">
+                    <span className="book-detail-label">
+                      Отзывы {book.reviews && book.reviews.length > 0 ? `(${book.reviews.length})` : ''}:
+                    </span>
+                    {book.average_rating !== null && book.average_rating !== undefined && (
+                      <div className="book-detail-average-rating">
+                        <span className="book-detail-average-rating-label">Средний рейтинг:</span>
+                        <StarRating rating={book.average_rating} size="medium" showValue={true} />
+                      </div>
+                    )}
+                  </div>
+                  {book.reviews && book.reviews.length > 0 ? (
+                    <>
+                      <div className="book-detail-reviews-list">
+                        {book.reviews.map((review) => (
+                          <ReviewItem
+                            key={review.id}
+                            review={review}
+                            currentUserId={currentUserId}
+                            onEdit={handleEditReview}
+                            onDelete={handleDeleteReview}
+                          />
+                        ))}
+                      </div>
+                      {/* Проверяем, есть ли у текущего пользователя отзыв */}
+                      {currentUserId && !book.reviews.some(review => {
+                        const reviewUserId = typeof review.user === 'object' && review.user !== null 
+                          ? review.user.id 
+                          : review.user;
+                        return reviewUserId === currentUserId;
+                      }) && (
+                        <div className="book-detail-add-review-section">
+                          <button 
+                            className="book-detail-add-review-button"
+                            onClick={() => {
+                              // Устанавливаем пустой объект для создания нового отзыва
+                              setEditingReview({});
+                            }}
+                          >
+                            Оставить отзыв
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="book-detail-no-reviews">
+                      <p>Пока нет отзывов. Будьте первым, кто оставит отзыв!</p>
+                      {currentUserId && (
+                        <button 
+                          className="book-detail-add-review-button"
+                          onClick={() => {
+                            // Устанавливаем пустой объект для создания нового отзыва
+                            setEditingReview({});
+                          }}
+                        >
+                          Оставить отзыв
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </section>
             </div>
           )}
         </div>
@@ -558,6 +712,31 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
           </div>
         )}
       </div>
+
+      {/* Модальное окно редактирования отзыва */}
+      {editingReview !== null && editingReview !== undefined && (
+        <EditReviewModal
+          isOpen={true}
+          review={editingReview.id ? editingReview : null}
+          bookId={book?.id}
+          onSave={handleSaveReview}
+          onCancel={handleCancelEditReview}
+        />
+      )}
+
+      {/* Модальное окно подтверждения удаления отзыва */}
+      {confirmDelete && (
+        <ConfirmModal
+          isOpen={true}
+          title={confirmDelete.error ? 'Ошибка' : 'Подтверждение удаления'}
+          message={confirmDelete.message}
+          confirmText={confirmDelete.error ? 'ОК' : 'Удалить'}
+          cancelText={confirmDelete.error ? null : 'Отмена'}
+          danger={!confirmDelete.error}
+          onConfirm={confirmDelete.error ? handleCancelDeleteReview : handleConfirmDeleteReview}
+          onCancel={confirmDelete.error ? handleCancelDeleteReview : handleCancelDeleteReview}
+        />
+      )}
     </div>
   );
 };

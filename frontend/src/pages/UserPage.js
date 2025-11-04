@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/Header';
+import ConfirmModal from '../components/ConfirmModal';
 import { userAPI, librariesAPI } from '../services/api';
 import './UserPage.css';
 
@@ -27,6 +28,10 @@ const UserPage = () => {
     country: '',
     description: '',
   });
+  
+  // Модальные окна уведомлений и подтверждений
+  const [notification, setNotification] = useState(null);
+  const [confirmDeleteLibrary, setConfirmDeleteLibrary] = useState(null);
   
   useEffect(() => {
     loadData();
@@ -92,10 +97,16 @@ const UserPage = () => {
       setProfile(updatedProfile);
       setEditMode(false);
       setFormData({ ...formData, photo: null });
-      alert('Профиль успешно обновлен!');
+      setNotification({
+        title: 'Успешно',
+        message: 'Профиль успешно обновлен!'
+      });
     } catch (error) {
       console.error('Ошибка сохранения профиля:', error);
-      alert('Ошибка при сохранении профиля');
+      setNotification({
+        title: 'Ошибка',
+        message: 'Ошибка при сохранении профиля'
+      });
     } finally {
       setSaving(false);
     }
@@ -103,7 +114,10 @@ const UserPage = () => {
 
   const handleCreateLibrary = async () => {
     if (!newLibrary.name || !newLibrary.address) {
-      alert('Пожалуйста, заполните название и адрес библиотеки');
+      setNotification({
+        title: 'Внимание',
+        message: 'Пожалуйста, заполните название и адрес библиотеки'
+      });
       return;
     }
     
@@ -119,31 +133,55 @@ const UserPage = () => {
         description: '',
       });
       setShowCreateLibrary(false);
-      alert('Библиотека успешно создана!');
+      setNotification({
+        title: 'Успешно',
+        message: 'Библиотека успешно создана!'
+      });
     } catch (error) {
       console.error('Ошибка создания библиотеки:', error);
-      alert('Ошибка при создании библиотеки');
+      setNotification({
+        title: 'Ошибка',
+        message: 'Ошибка при создании библиотеки'
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteLibrary = async (libraryId) => {
-    if (!window.confirm('Вы уверены, что хотите удалить эту библиотеку? Книги останутся у вас, но будут без библиотеки.')) {
-      return;
-    }
+  const handleDeleteLibrary = (libraryId) => {
+    // Показываем модальное окно подтверждения
+    setConfirmDeleteLibrary({
+      libraryId,
+      message: 'Вы уверены, что хотите удалить эту библиотеку? Книги останутся у вас, но будут без библиотеки.'
+    });
+  };
+
+  const handleConfirmDeleteLibrary = async () => {
+    if (!confirmDeleteLibrary) return;
     
     setSaving(true);
     try {
-      await librariesAPI.delete(libraryId);
-      setLibraries(libraries.filter(lib => lib.id !== libraryId));
-      alert('Библиотека успешно удалена!');
+      await librariesAPI.delete(confirmDeleteLibrary.libraryId);
+      setLibraries(libraries.filter(lib => lib.id !== confirmDeleteLibrary.libraryId));
+      setConfirmDeleteLibrary(null);
+      setNotification({
+        title: 'Успешно',
+        message: 'Библиотека успешно удалена!'
+      });
     } catch (error) {
       console.error('Ошибка удаления библиотеки:', error);
-      alert('Ошибка при удалении библиотеки');
+      setConfirmDeleteLibrary(null);
+      setNotification({
+        title: 'Ошибка',
+        message: 'Ошибка при удалении библиотеки'
+      });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCancelDeleteLibrary = () => {
+    setConfirmDeleteLibrary(null);
   };
 
   const handleLogout = () => {
@@ -404,6 +442,33 @@ const UserPage = () => {
           </section>
         </div>
       </div>
+
+      {/* Модальное окно уведомлений */}
+      {notification && (
+        <ConfirmModal
+          isOpen={true}
+          title={notification.title}
+          message={notification.message}
+          confirmText="ОК"
+          cancelText={null}
+          onConfirm={() => setNotification(null)}
+          onCancel={() => setNotification(null)}
+        />
+      )}
+
+      {/* Модальное окно подтверждения удаления библиотеки */}
+      {confirmDeleteLibrary && (
+        <ConfirmModal
+          isOpen={true}
+          title="Подтверждение удаления"
+          message={confirmDeleteLibrary.message}
+          confirmText="Удалить"
+          cancelText="Отмена"
+          danger={true}
+          onConfirm={handleConfirmDeleteLibrary}
+          onCancel={handleCancelDeleteLibrary}
+        />
+      )}
     </div>
   );
 };

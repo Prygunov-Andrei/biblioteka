@@ -229,6 +229,102 @@
   font-size: 13px;
 }
 
+/* Отзывы */
+.book-detail-section-reviews {
+  margin-top: 24px;
+}
+
+.book-detail-reviews-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.book-detail-average-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.book-detail-average-rating-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.dark-theme .book-detail-average-rating-label {
+  color: #999;
+}
+
+.book-detail-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background-color: #fafafa;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dark-theme .book-detail-reviews-list {
+  background-color: #1f1f1f;
+}
+
+.book-detail-no-reviews {
+  padding: 24px;
+  text-align: center;
+  color: #666;
+  background-color: #fafafa;
+  border-radius: 8px;
+}
+
+.dark-theme .book-detail-no-reviews {
+  background-color: #1f1f1f;
+  color: #999;
+}
+
+.book-detail-no-reviews p {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+}
+
+.book-detail-add-review-button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.book-detail-add-review-button:hover {
+  background-color: #0056b3;
+}
+
+.dark-theme .book-detail-add-review-button {
+  background-color: #4da3ff;
+}
+
+.dark-theme .book-detail-add-review-button:hover {
+  background-color: #3d8fdf;
+}
+
+.book-detail-add-review-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.dark-theme .book-detail-add-review-section {
+  border-top-color: #444;
+}
+
 .book-detail-section:last-child {
   margin-bottom: 0;
 }

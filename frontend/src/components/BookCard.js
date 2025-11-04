@@ -1,4 +1,5 @@
 import './BookCard.css';
+import StarRating from './StarRating';
 
 const BookCard = ({ book, onClick }) => {
   // Получаем изображение для карточки:
@@ -46,6 +47,11 @@ const BookCard = ({ book, onClick }) => {
       <div className="book-card-info">
         <h3 className="book-card-title">{book.title}</h3>
         <p className="book-card-author">{authorsText}</p>
+        {book.average_rating !== null && book.average_rating !== undefined && (
+          <div className="book-card-rating">
+            <StarRating rating={book.average_rating} size="small" showValue={true} />
+          </div>
+        )}
       </div>
     </div>
   );

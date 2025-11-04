@@ -85,6 +85,12 @@
   color: #999;
 }
 
+.book-card-rating {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+}
+
 @media (max-width: 768px) {
   .book-card-image-container {
     height: 220px;
