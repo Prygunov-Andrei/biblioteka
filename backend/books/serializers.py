@@ -324,6 +324,7 @@ class BookListSerializer(serializers.ModelSerializer):
     hashtags = serializers.SerializerMethodField()
     
     images_count = serializers.IntegerField(read_only=True, source='images_count_annotated')
+    first_page_url = serializers.SerializerMethodField()
     reviews_count = serializers.IntegerField(read_only=True, source='reviews_count_annotated')
     electronic_versions_count = serializers.IntegerField(read_only=True, source='electronic_versions_count_annotated')
     
@@ -334,6 +335,35 @@ class BookListSerializer(serializers.ModelSerializer):
     def get_hashtags(self, obj):
         # Возвращаем только имена хэштегов для списка
         return [{'id': h.id, 'name': h.name, 'slug': h.slug} for h in obj.hashtags.all()]
+    
+    def get_first_page_url(self, obj):
+        """Возвращает URL обложки книги (cover_page) для отображения в списке"""
+        try:
+            # Сначала проверяем, есть ли назначенная обложка
+            cover_page = obj.cover_page
+            if not cover_page:
+                # Если обложка не назначена, используем первую страницу
+                if hasattr(obj, 'all_pages') and obj.all_pages:
+                    cover_page = obj.all_pages[0] if obj.all_pages else None
+                else:
+                    # Иначе делаем запрос - используем order_by для получения первой страницы
+                    cover_page = obj.pages_set.order_by('page_number').first()
+            
+            if cover_page:
+                request = self.context.get('request')
+                # Приоритет: processed_image, затем original_image
+                if cover_page.processed_image:
+                    url = cover_page.processed_image.url
+                    return request.build_absolute_uri(url) if request else url
+                elif cover_page.original_image:
+                    url = cover_page.original_image.url
+                    return request.build_absolute_uri(url) if request else url
+        except Exception as e:
+            # Логируем ошибку для отладки
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(f'Ошибка получения обложки для книги {obj.id}: {e}')
+        return None
     
     class Meta:
         model = Book
@@ -346,7 +376,7 @@ class BookListSerializer(serializers.ModelSerializer):
             'binding_type', 'format',
             'price_rub', 'condition',
             'seller_code', 'isbn',
-            'images_count', 'reviews_count', 'electronic_versions_count',
+            'images_count', 'first_page_url', 'reviews_count', 'electronic_versions_count',
             'created_at', 'updated_at'
         ]
         # Убраны поля: description, binding_details, condition_details для уменьшения размера
@@ -365,6 +395,7 @@ class BookSerializer(serializers.ModelSerializer):
     hashtags = HashtagSerializer(many=True, read_only=True)
     images_count = serializers.IntegerField(read_only=True, source='images_count_annotated')
     images = serializers.SerializerMethodField()
+    first_page_url = serializers.SerializerMethodField()
     reviews_count = serializers.IntegerField(read_only=True, source='reviews_count_annotated')
     electronic_versions_count = serializers.IntegerField(read_only=True, source='electronic_versions_count_annotated')
     
@@ -373,6 +404,35 @@ class BookSerializer(serializers.ModelSerializer):
         # Они могут быть загружены отдельно по требованию через detail endpoint
         # Это значительно ускоряет загрузку списка книг
         return []
+    
+    def get_first_page_url(self, obj):
+        """Возвращает URL обложки книги (cover_page) для отображения в списке"""
+        try:
+            # Сначала проверяем, есть ли назначенная обложка
+            cover_page = obj.cover_page
+            if not cover_page:
+                # Если обложка не назначена, используем первую страницу
+                if hasattr(obj, 'all_pages') and obj.all_pages:
+                    cover_page = obj.all_pages[0] if obj.all_pages else None
+                else:
+                    # Иначе делаем запрос - используем order_by для получения первой страницы
+                    cover_page = obj.pages_set.order_by('page_number').first()
+            
+            if cover_page:
+                request = self.context.get('request')
+                # Приоритет: processed_image, затем original_image
+                if cover_page.processed_image:
+                    url = cover_page.processed_image.url
+                    return request.build_absolute_uri(url) if request else url
+                elif cover_page.original_image:
+                    url = cover_page.original_image.url
+                    return request.build_absolute_uri(url) if request else url
+        except Exception as e:
+            # Логируем ошибку для отладки
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(f'Ошибка получения обложки для книги {obj.id}: {e}')
+        return None
     
     class Meta:
         model = Book
@@ -385,7 +445,7 @@ class BookSerializer(serializers.ModelSerializer):
             'binding_type', 'binding_details', 'format',
             'price_rub', 'description', 'condition', 'condition_details',
             'seller_code', 'isbn',
-            'images_count', 'images', 'reviews_count', 'electronic_versions_count',
+            'images_count', 'images', 'first_page_url', 'reviews_count', 'electronic_versions_count',
             'created_at', 'updated_at'
         ]
 
@@ -393,9 +453,20 @@ class BookSerializer(serializers.ModelSerializer):
 class BookDetailSerializer(BookSerializer):
     """Детальный сериализатор книги"""
     electronic_versions = BookElectronicSerializer(many=True, read_only=True, source='electronic_versions.all')
-    pages = BookPageSerializer(source='pages_set', many=True, read_only=True)
+    pages = serializers.SerializerMethodField()
     reviews = BookReviewSerializer(many=True, read_only=True)
     reading_dates = BookReadingDateSerializer(many=True, read_only=True, source='reading_dates.all')
+    
+    def get_pages(self, obj):
+        """Получаем страницы, отсортированные по номеру страницы"""
+        # Используем prefetch_related кэш, если он есть, иначе делаем запрос
+        if hasattr(obj, '_prefetched_objects_cache') and 'pages_set' in obj._prefetched_objects_cache:
+            pages = list(obj._prefetched_objects_cache['pages_set'])
+            pages.sort(key=lambda x: x.page_number)
+        else:
+            pages = list(obj.pages_set.all().order_by('page_number'))
+        
+        return BookPageSerializer(pages, many=True, context=self.context).data
     
     class Meta(BookSerializer.Meta):
         fields = BookSerializer.Meta.fields + ['electronic_versions', 'pages', 'reviews', 'reading_dates']

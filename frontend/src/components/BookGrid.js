@@ -1,7 +1,7 @@
 import BookCard from './BookCard';
 import './BookGrid.css';
 
-const BookGrid = ({ books, loading }) => {
+const BookGrid = ({ books, loading, onBookClick }) => {
   if (loading) {
     return (
       <div className="book-grid-loading">
@@ -13,7 +13,7 @@ const BookGrid = ({ books, loading }) => {
   return (
     <div className="book-grid">
       {books.map((book) => (
-        <BookCard key={book.id} book={book} />
+        <BookCard key={book.id} book={book} onClick={onBookClick} />
       ))}
     </div>
   );

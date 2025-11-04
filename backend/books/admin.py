@@ -94,16 +94,17 @@ class LanguageAdmin(admin.ModelAdmin):
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
-    list_display = ['title', 'owner', 'category', 'status', 'year', 'language', 'created_at']
+    list_display = ['title', 'owner', 'category', 'status', 'year', 'language', 'cover_page', 'created_at']
     list_filter = ['status', 'category', 'binding_type', 'format', 'condition', 'year', 'language', 'created_at']
     search_fields = ['title', 'subtitle', 'isbn', 'owner__username']
     readonly_fields = ['created_at', 'updated_at']
+    raw_id_fields = ['cover_page']
     filter_horizontal = ['authors', 'hashtags']
     # ManyToMany поля с through моделями нельзя включать в fieldsets
     # Они будут автоматически добавлены Django admin через filter_horizontal
     fieldsets = (
         ('Основная информация', {
-            'fields': ('title', 'subtitle', 'category', 'status')
+            'fields': ('title', 'subtitle', 'category', 'status', 'cover_page')
         }),
         ('Владелец и библиотека', {
             'fields': ('owner', 'library')

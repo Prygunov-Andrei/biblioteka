@@ -109,6 +109,15 @@ class BookViewSet(viewsets.ModelViewSet):
                 'images', 'electronic_versions', 'pages_set',
                 'reviews', 'reading_dates'
             )
+        # Для list загружаем обложку (cover_page) и первую страницу каждой книги для отображения в карточке
+        elif self.action == 'list':
+            queryset = queryset.select_related('cover_page').prefetch_related(
+                Prefetch(
+                    'pages_set', 
+                    queryset=BookPage.objects.order_by('page_number'),
+                    to_attr='all_pages'
+                )
+            )
         # Для list НЕ загружаем изображения через prefetch - это слишком медленно для большого количества книг
         # Изображения будут загружены лениво через сериализатор только для первой страницы
         # Для остальных страниц images будет пустым массивом (карточки будут без изображений)

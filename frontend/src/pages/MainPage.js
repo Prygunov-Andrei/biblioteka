@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import BookGrid from '../components/BookGrid';
 import Filters from '../components/Filters';
+import BookDetailModal from '../components/BookDetailModal';
 import { authAPI, categoriesAPI, booksAPI, hashtagsAPI } from '../services/api';
 import './MainPage.css';
 
@@ -68,6 +69,10 @@ const MainPage = () => {
     recently_added: 0,
   });
 
+  // Состояние для модального окна просмотра книги
+  const [selectedBookId, setSelectedBookId] = useState(null);
+  const [isBookDetailModalOpen, setIsBookDetailModalOpen] = useState(false);
+
   useEffect(() => {
     loadHashtags();
   }, [selectedCategory]);
@@ -125,6 +130,34 @@ const MainPage = () => {
     return categories.reduce((total, category) => {
       return total + (category.books_count || 0);
     }, 0);
+  };
+
+  const handleBookClick = (book) => {
+    setSelectedBookId(book.id);
+    setIsBookDetailModalOpen(true);
+  };
+
+  const handleCloseBookDetail = () => {
+    setIsBookDetailModalOpen(false);
+    setSelectedBookId(null);
+  };
+
+  const handleEditBook = (book) => {
+    // TODO: Реализовать в Этапе 7
+    console.log('Редактирование книги:', book);
+    handleCloseBookDetail();
+  };
+
+  const handleTransferBook = (book) => {
+    // TODO: Реализовать в Этапе 8
+    console.log('Передача книги:', book);
+    handleCloseBookDetail();
+  };
+
+  const handleDeleteBook = (book) => {
+    // TODO: Реализовать в Этапе 9
+    console.log('Удаление книги:', book);
+    handleCloseBookDetail();
   };
 
   const loadStats = async () => {
@@ -315,6 +348,7 @@ const MainPage = () => {
           <BookGrid
             books={books}
             loading={loading}
+            onBookClick={handleBookClick}
           />
           
           {/* Пагинация */}
@@ -344,6 +378,16 @@ const MainPage = () => {
           )}
         </div>
       </div>
+
+      {/* Модальное окно просмотра книги */}
+      <BookDetailModal
+        bookId={selectedBookId}
+        isOpen={isBookDetailModalOpen}
+        onClose={handleCloseBookDetail}
+        onEdit={handleEditBook}
+        onTransfer={handleTransferBook}
+        onDelete={handleDeleteBook}
+      />
     </div>
   );
 };

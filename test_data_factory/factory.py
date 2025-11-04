@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.files import File
 
-from books.models import Category, Author, Publisher, Language, Book, BookAuthor, BookImage, BookReview, Library, Hashtag
+from books.models import Category, Author, Publisher, Language, Book, BookAuthor, BookImage, BookReview, Library, Hashtag, BookPage
 
 # Добавляем путь к фабрике для импорта
 factory_path = Path(__file__).parent
@@ -22,7 +22,7 @@ if str(factory_path) not in sys.path:
 from test_data_factory.generators.publishers_loader import load_publishers_from_json
 from test_data_factory.generators.authors_loader import load_authors_from_json
 from test_data_factory.generators.book_generator import BookGenerator
-from test_data_factory.generators.image_generator import generate_book_images
+from test_data_factory.generators.image_generator import generate_book_images, generate_book_pages
 
 User = get_user_model()
 
@@ -582,6 +582,43 @@ class TestDataFactory:
                             
                         except Exception as e:
                             print(f"    ⚠️  Ошибка генерации изображений: {e}")
+                        
+                        # Генерируем страницы книги (от 1 до 5 страниц)
+                        try:
+                            num_pages = random.randint(1, 5)
+                            page_paths = generate_book_pages(
+                                title=book.title,
+                                count=num_pages,
+                                output_dir=self.output_images_dir
+                            )
+                            
+                            # Создаем записи BookPage
+                            first_page = None
+                            for page_number, page_path in enumerate(page_paths, start=1):
+                                with open(page_path, 'rb') as page_file:
+                                    book_page = BookPage(
+                                        book=book,
+                                        page_number=page_number,
+                                        processing_status='pending',
+                                        width=1200,  # Стандартная ширина страницы
+                                        height=1600  # Стандартная высота страницы
+                                    )
+                                    book_page.original_image.save(
+                                        page_path.name,
+                                        File(page_file),
+                                        save=True
+                                    )
+                                    # Сохраняем первую страницу как обложку
+                                    if page_number == 1:
+                                        first_page = book_page
+                            
+                            # Назначаем первую страницу как обложку
+                            if first_page:
+                                book.cover_page = first_page
+                                book.save(update_fields=['cover_page'])
+                            
+                        except Exception as e:
+                            print(f"    ⚠️  Ошибка генерации страниц: {e}")
                         
                         # Добавляем хэштеги к половине книг (50% вероятность)
                         if random.random() < 0.5 and self.hashtags:

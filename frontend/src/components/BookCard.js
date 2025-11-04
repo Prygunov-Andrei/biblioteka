@@ -1,11 +1,16 @@
 import './BookCard.css';
 
-const BookCard = ({ book }) => {
-  // Получаем первое изображение книги
-  // images может быть массивом объектов BookImageSerializer с полем image_url
-  const bookImage = book.images && book.images.length > 0 
-    ? book.images[0].image_url 
-    : null;
+const BookCard = ({ book, onClick }) => {
+  // Получаем изображение для карточки:
+  // 1. Сначала пробуем первую страницу книги (с названием)
+  // 2. Если нет страницы, используем первое изображение книги
+  // 3. Если нет ни того, ни другого - показываем заглушку
+  const bookImage = book.first_page_url 
+    ? book.first_page_url
+    : (book.images && book.images.length > 0 
+      ? book.images[0].image_url 
+      : null);
+  
   
   // Получаем авторов
   const authors = book.authors || [];
@@ -13,8 +18,14 @@ const BookCard = ({ book }) => {
     ? authors.map(a => a.full_name || a).join(', ')
     : 'Автор не указан';
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick(book);
+    }
+  };
+
   return (
-    <div className="book-card">
+    <div className="book-card" onClick={handleClick}>
       <div className="book-card-image-container">
         {bookImage ? (
           <img 

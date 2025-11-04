@@ -577,6 +577,17 @@ class Book(models.Model):
         help_text='ISBN. Если у книги два кода ISBN, указывать надо только первый.'
     )
     
+    # Обложка книги
+    cover_page = models.ForeignKey(
+        'BookPage',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cover_for_books',
+        verbose_name='Обложка',
+        help_text='Страница книги, используемая как обложка (для отображения в списках и карточках)'
+    )
+    
     # Автоматические поля (created_at = дата размещения)
     created_at = models.DateTimeField('Дата размещения', auto_now_add=True)
     updated_at = models.DateTimeField('Обновлено', auto_now=True)

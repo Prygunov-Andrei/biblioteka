@@ -150,6 +150,120 @@ def generate_book_images(
     return images
 
 
+def generate_book_page(
+    title: str,
+    page_number: int,
+    output_dir: Path,
+    width: int = 1200,
+    height: int = 1600
+) -> Path:
+    """
+    Генерирует изображение страницы книги
+    
+    Args:
+        title: Название книги (для первой страницы)
+        page_number: Номер страницы (1 - титульная с названием, остальные - пустые)
+        output_dir: Директория для сохранения
+        width: Ширина изображения (стандартный формат страницы)
+        height: Высота изображения
+    
+    Returns:
+        Path к созданному файлу изображения
+    """
+    # Создаем изображение страницы (белый фон, как настоящая страница)
+    bg_color = (255, 255, 255) if random.random() < 0.9 else (248, 248, 248)  # Белый или слегка серый
+    img = Image.new('RGB', (width, height), color=bg_color)
+    draw = ImageDraw.Draw(img)
+    
+    # Для первой страницы (титульной) добавляем название книги
+    if page_number == 1 and title:
+        try:
+            # Пытаемся использовать стандартный шрифт
+            font_size = 72
+            try:
+                font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", font_size)
+            except:
+                try:
+                    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+                except:
+                    # Fallback на стандартный шрифт
+                    font = ImageFont.load_default()
+        except:
+            font = ImageFont.load_default()
+        
+        # Разбиваем длинный заголовок на строки
+        words = title.split()
+        lines = []
+        current_line = []
+        max_chars_per_line = 25  # Для больших страниц больше символов
+        
+        for word in words:
+            if len(' '.join(current_line + [word])) <= max_chars_per_line:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        # Ограничиваем количество строк (максимум 6)
+        lines = lines[:6]
+        
+        # Цвет текста (темный, почти черный)
+        text_color = (30, 30, 30)
+        
+        # Вычисляем позицию для текста (по центру, чуть выше середины)
+        total_height = len(lines) * (font_size + 20)
+        start_y = (height - total_height) // 2 - 50
+        
+        # Рисуем каждую строку
+        for i, line in enumerate(lines):
+            # Вычисляем ширину текста для центрирования
+            bbox = draw.textbbox((0, 0), line, font=font)
+            text_width = bbox[2] - bbox[0]
+            x = (width - text_width) // 2
+            y = start_y + i * (font_size + 20)
+            
+            # Рисуем текст
+            draw.text((x, y), line, font=font, fill=text_color)
+    
+    # Сохраняем изображение
+    output_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"book_page_{page_number}_{random.randint(1000, 9999)}.jpg"
+    filepath = output_dir / filename
+    
+    # Сохраняем как JPEG
+    img.save(filepath, 'JPEG', quality=90)
+    
+    return filepath
+
+
+def generate_book_pages(
+    title: str,
+    count: int,
+    output_dir: Path
+) -> list[Path]:
+    """
+    Генерирует страницы книги
+    
+    Args:
+        title: Название книги (для первой страницы)
+        count: Количество страниц (от 1 до 5)
+        output_dir: Директория для сохранения
+    
+    Returns:
+        Список путей к созданным файлам страниц
+    """
+    pages = []
+    for page_number in range(1, count + 1):
+        page_path = generate_book_page(title, page_number, output_dir)
+        pages.append(page_path)
+    
+    return pages
+
+
 if __name__ == '__main__':
     # Тест
     output_dir = Path(__file__).parent.parent / 'generated_images'
@@ -161,4 +275,11 @@ if __name__ == '__main__':
     print(f"\nСоздано {len(images)} изображений:")
     for img_path in images:
         print(f"  - {img_path}")
+    
+    print("\nГенерирую тестовые страницы...")
+    pages = generate_book_pages(title, 5, output_dir)
+    
+    print(f"\nСоздано {len(pages)} страниц:")
+    for page_path in pages:
+        print(f"  - {page_path}")
 
