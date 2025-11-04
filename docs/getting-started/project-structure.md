@@ -14,6 +14,8 @@ biblioteka/
 │   │   ├── exceptions.py   # Кастомные исключения
 │   │   ├── services/       # Бизнес-логика (сервисы)
 │   │   ├── management/     # Management команды
+│   │   ├── utils.py        # Утилиты (фильтрация, парсинг)
+│   │   ├── pagination.py   # Кастомная пагинация
 │   │   └── data/           # Данные (JSON, фикстуры)
 │   ├── config/             # Конфигурация проекта
 │   │   ├── settings.py     # Настройки Django

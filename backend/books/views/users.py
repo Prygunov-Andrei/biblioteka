@@ -12,7 +12,10 @@ from ..serializers import UserProfileSerializer
 
 class UserProfileViewSet(viewsets.ModelViewSet):
     """API для профилей пользователей"""
-    queryset = UserProfile.objects.select_related('user')
+    queryset = UserProfile.objects.select_related('user').prefetch_related(
+        'user__libraries',
+        'user__owned_books'
+    )
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]  # Профиль доступен только авторизованным
     parser_classes = (MultiPartParser, FormParser, JSONParser)

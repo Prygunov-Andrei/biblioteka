@@ -585,6 +585,11 @@ class Book(models.Model):
         verbose_name = 'Книга'
         verbose_name_plural = 'Книги'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at'], name='books_book_created_at_idx'),
+            models.Index(fields=['library', 'category'], name='books_book_lib_cat_idx'),
+            models.Index(fields=['owner', 'status'], name='books_book_owner_status_idx'),
+        ]
     
     def __str__(self):
         authors_str = ', '.join([a.full_name for a in self.authors.all()[:3]])

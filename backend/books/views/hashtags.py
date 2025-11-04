@@ -52,14 +52,9 @@ class HashtagViewSet(viewsets.ReadOnlyModelViewSet):
         
         if category_id:
             try:
-                category = Category.objects.get(id=category_id)
-                # Если категория родительская, включаем её подкатегории
-                if category.subcategories.exists():
-                    subcategory_ids = list(category.subcategories.values_list('id', flat=True))
-                    subcategory_ids.append(category.id)
-                    books_queryset = books_queryset.filter(category_id__in=subcategory_ids)
-                else:
-                    books_queryset = books_queryset.filter(category_id=category_id)
+                # Используем утилиту для получения queryset категории
+                from ..utils import get_category_queryset
+                books_queryset = get_category_queryset(category_id, include_subcategories=True)
             except Category.DoesNotExist:
                 return Response(
                     {'error': 'Категория не найдена'},

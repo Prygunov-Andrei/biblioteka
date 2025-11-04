@@ -12,7 +12,10 @@ from ..permissions import IsLibraryOwner
 
 class LibraryViewSet(viewsets.ModelViewSet):
     """API для библиотек"""
-    queryset = Library.objects.select_related('owner')
+    from django.db.models import Count
+    queryset = Library.objects.select_related('owner').annotate(
+        books_count_annotated=Count('books', distinct=True)
+    )
     serializer_class = LibrarySerializer
     permission_classes = [IsLibraryOwner]
     
@@ -54,8 +57,10 @@ class LibraryViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def books(self, request, pk=None):
         """Получить книги в библиотеке"""
+        from .books import BookViewSet
         library = self.get_object()
-        books = library.books.all()
-        serializer = BookSerializer(books, many=True, context={'request': request})
+        # Используем оптимизированный queryset из BookViewSet
+        books_queryset = BookViewSet.queryset.filter(library=library)
+        serializer = BookSerializer(books_queryset, many=True, context={'request': request})
         return Response(serializer.data)
 

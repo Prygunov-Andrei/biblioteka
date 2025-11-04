@@ -38,8 +38,10 @@ class AuthorViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def books(self, request, pk=None):
         """Получить все книги автора"""
+        from .books import BookViewSet
         author = self.get_object()
-        books = author.books.all()
-        serializer = BookSerializer(books, many=True, context={'request': request})
+        # Используем оптимизированный queryset из BookViewSet
+        books_queryset = BookViewSet.queryset.filter(authors=author)
+        serializer = BookSerializer(books_queryset, many=True, context={'request': request})
         return Response(serializer.data)
 

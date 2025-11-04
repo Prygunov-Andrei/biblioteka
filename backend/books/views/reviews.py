@@ -50,9 +50,9 @@ class BookReviewViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Проверяем существующий отзыв
+        # Проверяем существующий отзыв (используем select_related для оптимизации)
         try:
-            review = BookReview.objects.get(book_id=book_id, user=request.user)
+            review = BookReview.objects.select_related('book', 'user').get(book_id=book_id, user=request.user)
             # Обновляем существующий отзыв
             serializer = self.get_serializer(
                 review,

@@ -30,8 +30,10 @@ class PublisherViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def books(self, request, pk=None):
         """Получить все книги издательства"""
+        from .books import BookViewSet
         publisher = self.get_object()
-        books = publisher.books.all()
-        serializer = BookSerializer(books, many=True, context={'request': request})
+        # Используем оптимизированный queryset из BookViewSet
+        books_queryset = BookViewSet.queryset.filter(publisher=publisher)
+        serializer = BookSerializer(books_queryset, many=True, context={'request': request})
         return Response(serializer.data)
 

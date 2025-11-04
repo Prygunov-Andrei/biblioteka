@@ -118,7 +118,7 @@ class BookViewSet(viewsets.ModelViewSet):
         if category:
             try:
                 category_id = int(category)
-                category_obj = Category.objects.get(id=category_id)
+                category_obj = Category.objects.prefetch_related('subcategories').get(id=category_id)
                 # Если это родительская категория, включаем все её подкатегории
                 if category_obj.subcategories.exists():
                     subcategory_ids = list(category_obj.subcategories.values_list('id', flat=True))
@@ -140,14 +140,14 @@ class BookViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(owner__username__icontains=owner)
         
         # Фильтрация по библиотеке (поддержка множественного выбора)
-        libraries = self.request.query_params.getlist('libraries') or self.request.query_params.getlist('library')
-        if libraries:
-            try:
-                library_ids = [int(lib_id) for lib_id in libraries if lib_id]
-                if library_ids:
-                    queryset = queryset.filter(library_id__in=library_ids)
-            except (ValueError, TypeError):
-                # Если не удалось распарсить как ID, пробуем фильтровать по имени
+        from ..utils import parse_library_ids
+        library_ids = parse_library_ids(self.request)
+        if library_ids:
+            queryset = queryset.filter(library_id__in=library_ids)
+        else:
+            # Если не удалось распарсить как ID, пробуем фильтровать по имени
+            libraries = self.request.query_params.getlist('libraries') or self.request.query_params.getlist('library')
+            if libraries:
                 queryset = queryset.filter(library__name__in=libraries)
         
         # Фильтрация по статусу

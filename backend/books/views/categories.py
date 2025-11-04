@@ -12,7 +12,15 @@ from ..serializers import CategorySerializer, CategoryTreeSerializer
 
 class CategoryViewSet(viewsets.ModelViewSet):
     """API для категорий"""
-    queryset = Category.objects.all()
+    from django.db.models import Count, Prefetch
+    from ..models import Book
+    queryset = Category.objects.prefetch_related(
+        'subcategories',
+        Prefetch('subcategories__books', queryset=Book.objects.all())
+    ).annotate(
+        books_count_annotated=Count('books', distinct=True),
+        subcategories_books_count_annotated=Count('subcategories__books', distinct=True)
+    )
     serializer_class = CategorySerializer
     lookup_field = 'slug'
     permission_classes = [AllowAny]  # Категории доступны для чтения всем
@@ -57,14 +65,29 @@ class CategoryViewSet(viewsets.ModelViewSet):
         from books.models import Book
         
         # Получаем список библиотек из query параметра
-        libraries = request.query_params.getlist('libraries') or request.query_params.getlist('library')
-        library_ids = []
-        if libraries:
-            try:
-                library_ids = [int(lib_id) for lib_id in libraries if lib_id]
-            except (ValueError, TypeError):
-                pass
+        from ..utils import parse_library_ids
+        library_ids = parse_library_ids(request)
         
+        # Аннотируем подкатегории для каждой родительской категории
+        from django.db.models import Prefetch
+        if library_ids:
+            subcategories_queryset = Category.objects.filter(
+                parent_category__isnull=False
+            ).annotate(
+                books_count=Count(
+                    'books',
+                    filter=Q(books__library_id__in=library_ids),
+                    distinct=True
+                )
+            ).order_by('name')
+        else:
+            subcategories_queryset = Category.objects.filter(
+                parent_category__isnull=False
+            ).annotate(
+                books_count=Count('books', distinct=True)
+            ).order_by('name')
+        
+        # Формируем queryset для родительских категорий
         parent_categories = Category.objects.filter(
             parent_category__isnull=True
         ).order_by('name')  # Сортировка по алфавиту
@@ -73,17 +96,22 @@ class CategoryViewSet(viewsets.ModelViewSet):
         if library_ids:
             # Аннотируем количество книг с фильтрацией по библиотекам
             parent_categories = parent_categories.annotate(
-                books_count=Count(
+                books_count_annotated=Count(
                     'books',
                     filter=Q(books__library_id__in=library_ids),
                     distinct=True
                 ),
-                subcategories_books_count=Count(
+                subcategories_books_count_annotated=Count(
                     'subcategories__books',
                     filter=Q(subcategories__books__library_id__in=library_ids),
                     distinct=True
                 )
             )
+        
+        # Добавляем prefetch для подкатегорий (должно быть ПОСЛЕ аннотаций)
+        parent_categories = parent_categories.prefetch_related(
+            Prefetch('subcategories', queryset=subcategories_queryset)
+        )
         
         serializer = CategoryTreeSerializer(
             parent_categories, 
@@ -96,7 +124,11 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def subcategories(self, request, slug=None):
         """Возвращает подкатегории для данной категории"""
         category = self.get_object()
-        subcategories = category.subcategories.all().order_by('name')  # Сортировка по алфавиту
+        # Используем prefetch если доступен
+        if hasattr(category, '_prefetched_objects_cache') and 'subcategories' in category._prefetched_objects_cache:
+            subcategories = category.subcategories.all().order_by('name')
+        else:
+            subcategories = category.subcategories.all().order_by('name')
         serializer = CategorySerializer(subcategories, many=True)
         return Response(serializer.data)
 

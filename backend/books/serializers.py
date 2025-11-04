@@ -44,9 +44,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return None
     
     def get_libraries_count(self, obj):
+        # Используем prefetch_related если доступен, иначе count()
+        if hasattr(obj.user, '_prefetched_objects_cache') and 'libraries' in obj.user._prefetched_objects_cache:
+            return len(obj.user.libraries.all())
         return obj.user.libraries.count()
     
     def get_books_count(self, obj):
+        # Используем prefetch_related если доступен, иначе count()
+        if hasattr(obj.user, '_prefetched_objects_cache') and 'owned_books' in obj.user._prefetched_objects_cache:
+            return len(obj.user.owned_books.all())
         return obj.user.owned_books.count()
 
 
@@ -67,7 +73,8 @@ class LibrarySerializer(serializers.ModelSerializer):
         }
     
     def get_books_count(self, obj):
-        return obj.books.count()
+        # Используем аннотацию если есть, иначе count()
+        return getattr(obj, 'books_count_annotated', obj.books.count())
 
 
 class HashtagSerializer(serializers.ModelSerializer):
@@ -119,10 +126,25 @@ class CategorySerializer(serializers.ModelSerializer):
     
     def get_books_count(self, obj):
         """Подсчитывает книги включая подкатегории"""
+        # Используем аннотации если доступны
+        books_count = getattr(obj, 'books_count_annotated', 0)
+        subcategories_count = getattr(obj, 'subcategories_books_count_annotated', 0)
+        
+        if books_count > 0 or subcategories_count > 0:
+            return books_count + subcategories_count
+        
+        # Fallback: если аннотации нет, используем старый метод (но это медленнее)
         count = obj.books.count()
-        # Добавляем книги из всех подкатегорий
-        for subcategory in obj.subcategories.all():
-            count += subcategory.books.count()
+        if hasattr(obj, '_prefetched_objects_cache') and 'subcategories' in obj._prefetched_objects_cache:
+            for subcategory in obj.subcategories.all():
+                count += subcategory.books.count()
+        else:
+            # Если нет prefetch, делаем один запрос для всех подкатегорий
+            from django.db.models import Count
+            subcategories_count = obj.subcategories.aggregate(
+                total=Count('books')
+            )['total'] or 0
+            count += subcategories_count
         return count
     
     def get_subcategories(self, obj):
@@ -167,7 +189,8 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
                 'slug': sub.slug,
                 'icon': sub.icon,
                 'order': sub.order,
-                'books_count': getattr(sub, 'books_count', sub.books.count()) if library_ids else sub.books.count()
+                # Используем аннотацию если есть, иначе 0 (не вызываем count() чтобы избежать N+1)
+                'books_count': getattr(sub, 'books_count', 0)
             }
             for sub in subcategories
         ]
@@ -176,14 +199,24 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         """Подсчитывает книги включая подкатегории"""
         library_ids = self.context.get('library_ids', [])
         
-        if library_ids:
-            # Используем аннотированные значения если они есть
-            count = getattr(obj, 'books_count', 0)
-            subcategories_count = getattr(obj, 'subcategories_books_count', 0)
-            return count + subcategories_count
-        else:
-            # Если библиотеки не указаны, возвращаем 0
+        # Используем аннотации если доступны
+        books_count = getattr(obj, 'books_count_annotated', 0)
+        subcategories_count = getattr(obj, 'subcategories_books_count_annotated', 0)
+        
+        if books_count > 0 or subcategories_count > 0:
+            return books_count + subcategories_count
+        
+        # Fallback: если аннотации нет и библиотеки не указаны, возвращаем 0
+        if not library_ids:
             return 0
+        
+        # Если библиотеки указаны, но аннотации нет - делаем запрос
+        from django.db.models import Count, Q
+        count = obj.books.filter(library_id__in=library_ids).count()
+        subcategories_count = obj.subcategories.aggregate(
+            total=Count('books', filter=Q(books__library_id__in=library_ids))
+        )['total'] or 0
+        return count + subcategories_count
 
 
 class AuthorSerializer(serializers.ModelSerializer):
