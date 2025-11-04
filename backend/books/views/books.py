@@ -213,15 +213,30 @@ class BookViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
         
-        # Поиск по названию, подзаголовку, ISBN
+        # Поиск по названию, подзаголовку, ISBN (нечувствительный к регистру)
         search = self.request.query_params.get('search')
         if search:
-            queryset = queryset.filter(
-                Q(title__icontains=search) |
-                Q(subtitle__icontains=search) |
-                Q(isbn__icontains=search) |
-                Q(authors__full_name__icontains=search)
-            )
+            # В PostgreSQL с локалью C icontains может быть чувствителен к регистру
+            # Используем поиск по нескольким вариантам регистра для надежности
+            search_variants = [
+                search.lower(),      # нижний регистр
+                search.capitalize(),  # с заглавной первой буквой
+                search.upper(),      # верхний регистр
+                search,              # исходный вариант
+            ]
+            # Убираем дубликаты
+            search_variants = list(dict.fromkeys(search_variants))
+            
+            # Создаем Q объект для поиска по всем вариантам
+            search_q = Q()
+            for variant in search_variants:
+                search_q |= (
+                    Q(title__icontains=variant) |
+                    Q(subtitle__icontains=variant) |
+                    Q(isbn__icontains=variant) |
+                    Q(authors__full_name__icontains=variant)
+                )
+            queryset = queryset.filter(search_q)
         
         # Фильтрация по типу переплета
         binding_type = self.request.query_params.get('binding_type')

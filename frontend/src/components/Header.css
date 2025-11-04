@@ -66,6 +66,7 @@
   flex: 1;
   display: flex;
   justify-content: center;
+  align-items: center;
   padding: 0 20px;
 }
 
@@ -112,6 +113,37 @@
   top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
+}
+
+.add-book-button {
+  margin-left: 15px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.add-book-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.add-book-button:active {
+  transform: translateY(0);
+}
+
+.dark-theme .add-book-button {
+  background: linear-gradient(135deg, #8a9eff 0%, #9b6eff 100%);
+}
+
+.dark-theme .add-book-button:hover {
+  box-shadow: 0 4px 12px rgba(138, 158, 255, 0.4);
 }
 
 .header-right {
@@ -258,6 +290,12 @@
   
   .header-center {
     flex: 2;
+  }
+  
+  .add-book-button {
+    margin-left: 10px;
+    padding: 8px 15px;
+    font-size: 12px;
   }
   
   .user-name {

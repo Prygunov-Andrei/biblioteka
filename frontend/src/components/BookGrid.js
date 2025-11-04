@@ -1,7 +1,7 @@
 import BookCard from './BookCard';
 import './BookGrid.css';
 
-const BookGrid = ({ books, loading, onAddBook }) => {
+const BookGrid = ({ books, loading }) => {
   if (loading) {
     return (
       <div className="book-grid-loading">
@@ -15,10 +15,6 @@ const BookGrid = ({ books, loading, onAddBook }) => {
       {books.map((book) => (
         <BookCard key={book.id} book={book} />
       ))}
-      <div className="add-book-card" onClick={onAddBook}>
-        <div className="add-book-icon">+</div>
-        <div className="add-book-text">ДОБАВИТЬ НОВУЮ КНИГУ</div>
-      </div>
     </div>
   );
 };

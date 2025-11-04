@@ -277,6 +277,7 @@ const MainPage = () => {
         onSearch={handleSearch}
         selectedLibraries={selectedLibraries}
         onLibrariesChange={setSelectedLibraries}
+        onAddBook={handleAddBook}
       />
       <div className="main-content">
               <Sidebar
@@ -297,7 +298,6 @@ const MainPage = () => {
           <BookGrid
             books={books}
             loading={loading}
-            onAddBook={handleAddBook}
           />
           
           {/* Пагинация */}

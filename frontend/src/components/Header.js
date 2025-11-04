@@ -6,7 +6,7 @@ import { isAuthenticated } from '../utils/auth';
 import LibrarySelector from './LibrarySelector';
 import './Header.css';
 
-const Header = ({ onLogout, searchQuery, onSearch, selectedLibraries, onLibrariesChange }) => {
+const Header = ({ onLogout, searchQuery, onSearch, selectedLibraries, onLibrariesChange, onAddBook }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -59,6 +59,13 @@ const Header = ({ onLogout, searchQuery, onSearch, selectedLibraries, onLibrarie
             />
             <span className="search-icon">🔍</span>
           </div>
+          <button 
+            className="add-book-button"
+            onClick={onAddBook}
+            title="Добавить новую книгу"
+          >
+            + Добавить книгу
+          </button>
         </div>
         <div className="header-right">
           <LibrarySelector
