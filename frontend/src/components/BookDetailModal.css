@@ -173,6 +173,62 @@
   padding-top: 0;
 }
 
+/* Электронные версии */
+.book-detail-section-electronic {
+  margin-top: 24px;
+}
+
+.book-detail-electronic-versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.book-detail-electronic-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #333;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.dark-theme .book-detail-electronic-version {
+  background-color: #2a2a2a;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+.book-detail-electronic-version:hover {
+  background-color: #e8e8e8;
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.dark-theme .book-detail-electronic-version:hover {
+  background-color: #333;
+  border-color: #4da3ff;
+  color: #4da3ff;
+}
+
+.book-detail-electronic-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.book-detail-electronic-label {
+  font-weight: 500;
+  font-size: 13px;
+}
+
 .book-detail-section:last-child {
   margin-bottom: 0;
 }

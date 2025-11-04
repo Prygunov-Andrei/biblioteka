@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.files import File
 
-from books.models import Category, Author, Publisher, Language, Book, BookAuthor, BookImage, BookReview, Library, Hashtag, BookPage
+from books.models import Category, Author, Publisher, Language, Book, BookAuthor, BookImage, BookReview, Library, Hashtag, BookPage, BookElectronic
 
 # Добавляем путь к фабрике для импорта
 factory_path = Path(__file__).parent
@@ -667,6 +667,47 @@ class TestDataFactory:
                                 )
                             except Exception as e:
                                 print(f"    ⚠️  Ошибка создания отзыва: {e}")
+                        
+                        # Генерируем электронные версии для части книг (60% вероятность)
+                        if random.random() < 0.6:
+                            try:
+                                import tempfile
+                                import os
+                                
+                                # Все возможные форматы
+                                all_formats = ['pdf', 'epub', 'mobi', 'fb2', 'djvu', 'txt', 'rtf', 'doc', 'docx']
+                                
+                                # Количество форматов для этой книги (от 1 до всех)
+                                num_formats = random.randint(1, len(all_formats))
+                                
+                                # Выбираем случайные форматы
+                                selected_formats = random.sample(all_formats, num_formats)
+                                
+                                # Создаем пустые файлы для каждого формата
+                                for format_type in selected_formats:
+                                    # Создаем временный пустой файл
+                                    with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{format_type}') as temp_file:
+                                        # Пишем минимальные данные (для тестов)
+                                        temp_file.write(b'Test file content for ' + format_type.encode() + b' format')
+                                        temp_file_path = temp_file.name
+                                    
+                                    # Создаем BookElectronic
+                                    with open(temp_file_path, 'rb') as f:
+                                        electronic = BookElectronic(
+                                            book=book,
+                                            format=format_type
+                                        )
+                                        # Генерируем имя файла
+                                        filename = f"{book.title[:50]}_{format_type}.{format_type}"
+                                        # Убираем недопустимые символы из имени файла
+                                        filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.')).strip()
+                                        electronic.file.save(filename, File(f), save=True)
+                                    
+                                    # Удаляем временный файл
+                                    os.unlink(temp_file_path)
+                                
+                            except Exception as e:
+                                print(f"    ⚠️  Ошибка создания электронных версий: {e}")
                     
                 except Exception as e:
                     print(f"    ❌ Ошибка создания книги: {e}")

@@ -445,7 +445,6 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
 
               {/* Связанные данные */}
               {((book.hashtags && book.hashtags.length > 0) || 
-                (book.electronic_versions_count > 0) ||
                 (book.reviews_count > 0) ||
                 (book.reading_dates && book.reading_dates.length > 0)) && (
                 <section className="book-detail-section">
@@ -457,14 +456,6 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
                           if (typeof h === 'string') return h;
                           return h.name || h.slug || h;
                         }).join(', ')}
-                      </span>
-                    </div>
-                  )}
-                  {(book.electronic_versions_count > 0 || (book.electronic_versions && book.electronic_versions.length > 0)) && (
-                    <div className="book-detail-field book-detail-field-full">
-                      <span className="book-detail-label">Электронные версии:</span>
-                      <span className="book-detail-value">
-                        {book.electronic_versions_count || (book.electronic_versions ? book.electronic_versions.length : 0)} шт.
                       </span>
                     </div>
                   )}
@@ -487,6 +478,63 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
                       </span>
                     </div>
                   )}
+                </section>
+              )}
+              
+              {/* Электронные версии */}
+              {book.electronic_versions && book.electronic_versions.length > 0 && (
+                <section className="book-detail-section book-detail-section-electronic">
+                  <div className="book-detail-field book-detail-field-full">
+                    <span className="book-detail-label">Электронные версии:</span>
+                    <div className="book-detail-electronic-versions">
+                      {book.electronic_versions.map((version, index) => {
+                        const downloadUrl = version.file_url || version.url;
+                        if (!downloadUrl) return null;
+                        
+                        // Иконки для разных форматов
+                        const formatIcons = {
+                          'pdf': '📄',
+                          'epub': '📖',
+                          'mobi': '📱',
+                          'fb2': '📚',
+                          'djvu': '📑',
+                          'txt': '📝',
+                          'rtf': '📄',
+                          'doc': '📄',
+                          'docx': '📄'
+                        };
+                        
+                        const formatLabels = {
+                          'pdf': 'PDF',
+                          'epub': 'EPUB',
+                          'mobi': 'MOBI',
+                          'fb2': 'FB2',
+                          'djvu': 'DJVU',
+                          'txt': 'TXT',
+                          'rtf': 'RTF',
+                          'doc': 'DOC',
+                          'docx': 'DOCX'
+                        };
+                        
+                        const icon = formatIcons[version.format] || '📄';
+                        const label = formatLabels[version.format] || version.format.toUpperCase();
+                        
+                        return (
+                          <a
+                            key={version.id || index}
+                            href={downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="book-detail-electronic-version"
+                            title={`Скачать ${label}`}
+                          >
+                            <span className="book-detail-electronic-icon">{icon}</span>
+                            <span className="book-detail-electronic-label">{label}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </section>
               )}
             </div>
