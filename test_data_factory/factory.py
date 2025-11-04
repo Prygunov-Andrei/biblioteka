@@ -747,8 +747,9 @@ class TestDataFactory:
                             except Exception as e:
                                 print(f"    ⚠️  Ошибка создания электронных версий: {e}")
                         
-                        # Генерируем даты прочтения для прочитанных книг (status == 'read')
-                        if book.status == 'read':
+                        # Генерируем даты прочтения для прочитанных книг (status == 'read' или 'want_to_reread')
+                        # Для want_to_reread тоже генерируем даты, так как книга уже была прочитана
+                        if book.status == 'read' or book.status == 'want_to_reread':
                             try:
                                 from datetime import datetime, timedelta
                                 
@@ -758,6 +759,9 @@ class TestDataFactory:
                                 # Генерируем даты прочтения (от 1 года назад до сегодня)
                                 # Первое прочтение - самое раннее
                                 days_ago_first = random.randint(30, 365)  # От месяца до года назад
+                                
+                                # Используем set для отслеживания уже созданных дат, чтобы избежать дубликатов
+                                created_dates = set()
                                 
                                 for reading_num in range(num_readings):
                                     # Каждое следующее прочтение не раньше предыдущего
@@ -772,6 +776,24 @@ class TestDataFactory:
                                     
                                     # Вычисляем дату прочтения
                                     read_date = datetime.now().date() - timedelta(days=days_ago)
+                                    
+                                    # Проверяем, что такой даты еще нет для этой книги
+                                    if read_date in created_dates:
+                                        # Если дата уже есть, добавляем 1 день
+                                        read_date = read_date + timedelta(days=1)
+                                        days_ago = max(0, days_ago - 1)
+                                    
+                                    # Проверяем, что дата не в будущем
+                                    if read_date > datetime.now().date():
+                                        read_date = datetime.now().date()
+                                    
+                                    # Проверяем, что такая дата еще не существует в БД для этой книги
+                                    if BookReadingDate.objects.filter(book=book, date=read_date).exists():
+                                        # Если уже существует, пропускаем эту дату
+                                        continue
+                                    
+                                    # Добавляем дату в set
+                                    created_dates.add(read_date)
                                     
                                     # Создаем запись о прочтении
                                     BookReadingDate.objects.create(

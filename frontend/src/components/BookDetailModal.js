@@ -265,27 +265,38 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
   };
 
   const getFirstReadingDate = () => {
-    // Получаем первую дату прочтения (самую раннюю) для прочитанных книг
-    if (!book || book.status !== 'read' || !book.reading_dates || book.reading_dates.length === 0) {
+    // Получаем первую дату прочтения (самую раннюю) для прочитанных книг и книг "Буду перечитывать"
+    // Для want_to_reread тоже показываем дату, так как книга уже была прочитана
+    if (!book || (book.status !== 'read' && book.status !== 'want_to_reread') || !book.reading_dates || book.reading_dates.length === 0) {
       return null;
     }
     
-    // Сортируем даты по возрастанию (первая дата - самая ранняя)
+    // Преобразуем даты в объекты Date для корректной сортировки
     const dates = book.reading_dates
       .map(d => {
-        if (typeof d === 'string') return d;
-        return d.date || d;
+        if (typeof d === 'string') return new Date(d);
+        return new Date(d.date || d);
       })
-      .filter(d => d)
-      .sort();
+      .filter(d => !isNaN(d.getTime())) // Фильтруем невалидные даты
+      .sort((a, b) => a - b); // Сортируем по возрастанию (самая ранняя первая)
     
     return dates.length > 0 ? dates[0] : null;
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-    if (isNaN(date.getTime())) return dateString; // Если невалидная дата, возвращаем как есть
+  const formatDate = (dateInput) => {
+    if (!dateInput) return '';
+    // Если это уже объект Date
+    if (dateInput instanceof Date) {
+      if (isNaN(dateInput.getTime())) return '';
+      return dateInput.toLocaleDateString('ru-RU', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+    // Если это строка или другой формат
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : new Date(dateInput);
+    if (isNaN(date.getTime())) return String(dateInput); // Если невалидная дата, возвращаем как есть
     return date.toLocaleDateString('ru-RU', {
       year: 'numeric',
       month: 'long',
@@ -549,7 +560,7 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
                   <span className="book-detail-label">Статус чтения:</span>
                   <span className="book-detail-value">
                     {formatStatus()}
-                    {book.status === 'read' && getFirstReadingDate() && (
+                    {(book.status === 'read' || book.status === 'want_to_reread') && getFirstReadingDate() && (
                       <span className="book-detail-reading-date">
                         {' '}(прочитано {formatDate(getFirstReadingDate())})
                       </span>
