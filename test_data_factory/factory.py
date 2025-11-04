@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.files import File
 
-from books.models import Category, Author, Publisher, Language, Book, BookAuthor, BookImage, BookReview, Library, Hashtag, BookPage, BookElectronic
+from books.models import Category, Author, Publisher, Language, Book, BookAuthor, BookImage, BookReview, Library, Hashtag, BookPage, BookElectronic, BookReadingDate
 
 # Добавляем путь к фабрике для импорта
 factory_path = Path(__file__).parent
@@ -746,6 +746,47 @@ class TestDataFactory:
                                 
                             except Exception as e:
                                 print(f"    ⚠️  Ошибка создания электронных версий: {e}")
+                        
+                        # Генерируем даты прочтения для прочитанных книг (status == 'read')
+                        if book.status == 'read':
+                            try:
+                                from datetime import datetime, timedelta
+                                
+                                # Количество прочтений (от 1 до 5, для реалистичности)
+                                num_readings = random.randint(1, 5)
+                                
+                                # Генерируем даты прочтения (от 1 года назад до сегодня)
+                                # Первое прочтение - самое раннее
+                                days_ago_first = random.randint(30, 365)  # От месяца до года назад
+                                
+                                for reading_num in range(num_readings):
+                                    # Каждое следующее прочтение не раньше предыдущего
+                                    # Но не позже сегодня
+                                    if reading_num == 0:
+                                        # Первое прочтение
+                                        days_ago = days_ago_first
+                                    else:
+                                        # Последующие прочтения - через некоторое время после предыдущего
+                                        # Минимум 7 дней, максимум 180 дней после предыдущего
+                                        days_ago = max(0, days_ago - random.randint(7, 180))
+                                    
+                                    # Вычисляем дату прочтения
+                                    read_date = datetime.now().date() - timedelta(days=days_ago)
+                                    
+                                    # Создаем запись о прочтении
+                                    BookReadingDate.objects.create(
+                                        book=book,
+                                        date=read_date,
+                                        notes='' if random.random() < 0.7 else random.choice([
+                                            'Прочитал с удовольствием',
+                                            'Отличная книга',
+                                            'Перечитал, еще лучше',
+                                            'Впечатлен',
+                                            'Рекомендую'
+                                        ])
+                                    )
+                            except Exception as e:
+                                print(f"    ⚠️  Ошибка создания дат прочтения: {e}")
                     
                 except Exception as e:
                     print(f"    ❌ Ошибка создания книги: {e}")

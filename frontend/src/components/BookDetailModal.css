@@ -484,6 +484,17 @@
   word-wrap: break-word;
 }
 
+.book-detail-reading-date {
+  color: #666;
+  font-size: 0.9em;
+  font-style: italic;
+  margin-left: 0.5em;
+}
+
+.dark-theme .book-detail-reading-date {
+  color: #aaa;
+}
+
 .dark-theme .book-detail-value {
   color: #fff;
 }

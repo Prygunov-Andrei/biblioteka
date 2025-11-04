@@ -264,6 +264,35 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
     return statusMap[book.status] || book.status;
   };
 
+  const getFirstReadingDate = () => {
+    // Получаем первую дату прочтения (самую раннюю) для прочитанных книг
+    if (!book || book.status !== 'read' || !book.reading_dates || book.reading_dates.length === 0) {
+      return null;
+    }
+    
+    // Сортируем даты по возрастанию (первая дата - самая ранняя)
+    const dates = book.reading_dates
+      .map(d => {
+        if (typeof d === 'string') return d;
+        return d.date || d;
+      })
+      .filter(d => d)
+      .sort();
+    
+    return dates.length > 0 ? dates[0] : null;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+    if (isNaN(date.getTime())) return dateString; // Если невалидная дата, возвращаем как есть
+    return date.toLocaleDateString('ru-RU', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
   const formatBindingType = () => {
     if (!book || !book.binding_type) {
       return 'Не указан';
@@ -518,7 +547,14 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
                 )}
                 <div className="book-detail-field">
                   <span className="book-detail-label">Статус чтения:</span>
-                  <span className="book-detail-value">{formatStatus()}</span>
+                  <span className="book-detail-value">
+                    {formatStatus()}
+                    {book.status === 'read' && getFirstReadingDate() && (
+                      <span className="book-detail-reading-date">
+                        {' '}(прочитано {formatDate(getFirstReadingDate())})
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div className="book-detail-field">
                   <span className="book-detail-label">Библиотека:</span>
