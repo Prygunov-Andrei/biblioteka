@@ -33,6 +33,7 @@ const PUBLIC_ENDPOINTS = [
   '/categories/tree/',
   '/hashtags/',
   '/books/',  // GET запросы на список книг
+  '/books/stats/',  // GET запросы на статистику фильтров
 ];
 
 // Проверяем, является ли эндпоинт публичным
@@ -185,6 +186,23 @@ export const hashtagsAPI = {
 
 // API методы для книг
 export const booksAPI = {
+  getStats: async (params = {}) => {
+    const requestParams = new URLSearchParams();
+    
+    // Обрабатываем все параметры
+    Object.keys(params).forEach(key => {
+      if (key === 'libraries' && Array.isArray(params[key])) {
+        params[key].forEach(libId => {
+          requestParams.append('libraries', libId);
+        });
+      } else if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
+        requestParams.append(key, params[key]);
+      }
+    });
+    
+    const response = await apiClient.get(`/books/stats/?${requestParams.toString()}`);
+    return response.data;
+  },
   getAll: async (params = {}) => {
     // Для множественных библиотек используем getlist
     const requestParams = new URLSearchParams();

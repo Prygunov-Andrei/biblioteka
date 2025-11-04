@@ -55,6 +55,19 @@ const MainPage = () => {
   //   loadAllBooksForStats(); // Загружаем все книги для статистики (без фильтров)
   // }, []);
 
+  const [stats, setStats] = useState({
+    status: {
+      none: 0,
+      reading: 0,
+      read: 0,
+      want_to_read: 0,
+      want_to_reread: 0,
+    },
+    with_reviews: 0,
+    with_electronic: 0,
+    recently_added: 0,
+  });
+
   useEffect(() => {
     loadHashtags();
   }, [selectedCategory]);
@@ -67,6 +80,10 @@ const MainPage = () => {
   useEffect(() => {
     loadBooks();
   }, [selectedCategory, selectedHashtag, searchQuery, filters, selectedLibraries, currentPage]);
+
+  useEffect(() => {
+    loadStats();
+  }, [selectedCategory, selectedHashtag, searchQuery, selectedLibraries]);
 
   const loadData = async () => {
     try {
@@ -110,59 +127,59 @@ const MainPage = () => {
     }, 0);
   };
 
-  const calculateStats = () => {
-    const stats = {
-      status: {
-        none: 0,
-        reading: 0,
-        read: 0,
-        want_to_read: 0,
-        want_to_reread: 0,
-      },
-      with_reviews: 0,
-      with_electronic: 0,
-      recently_added: 0,
-    };
-
-    // Фильтруем книги по выбранным библиотекам
-    // Если не выбрана ни одна библиотека - возвращаем нулевые статистики
-    if (selectedLibraries.length === 0) {
-      return stats;
+  const loadStats = async () => {
+    try {
+      // Если не выбрана ни одна библиотека - сбрасываем статистику
+      if (selectedLibraries.length === 0) {
+        setStats({
+          status: {
+            none: 0,
+            reading: 0,
+            read: 0,
+            want_to_read: 0,
+            want_to_reread: 0,
+          },
+          with_reviews: 0,
+          with_electronic: 0,
+          recently_added: 0,
+        });
+        return;
+      }
+      
+      const params = {
+        libraries: selectedLibraries,
+      };
+      
+      if (selectedCategory) {
+        params.category = selectedCategory.id;
+      }
+      
+      if (selectedHashtag) {
+        params.hashtag = selectedHashtag.id;
+      }
+      
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+      
+      const statsData = await booksAPI.getStats(params);
+      setStats(statsData);
+    } catch (error) {
+      console.error('Ошибка загрузки статистики:', error);
+      // В случае ошибки сбрасываем статистику
+      setStats({
+        status: {
+          none: 0,
+          reading: 0,
+          read: 0,
+          want_to_read: 0,
+          want_to_reread: 0,
+        },
+        with_reviews: 0,
+        with_electronic: 0,
+        recently_added: 0,
+      });
     }
-    
-    // Используем уже загруженные книги из состояния books
-    // Они УЖЕ отфильтрованы бэкендом по категории, библиотекам и другим фильтрам
-    // Не нужно фильтровать их снова на клиенте!
-    const booksToCount = books;
-
-    booksToCount.forEach(book => {
-      // Статусы
-      if (book.status && stats.status[book.status] !== undefined) {
-        stats.status[book.status]++;
-      }
-      
-      // Отзывы
-      if (book.reviews_count > 0) {
-        stats.with_reviews++;
-      }
-      
-      // Электронные версии
-      if (book.electronic_versions_count > 0) {
-        stats.with_electronic++;
-      }
-      
-      // Недавно добавленные
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      if (book.created_at) {
-        const createdDate = new Date(book.created_at);
-        if (createdDate >= sevenDaysAgo) {
-          stats.recently_added++;
-        }
-      }
-    });
-
-    return stats;
   };
 
   const loadBooks = async () => {
@@ -293,7 +310,7 @@ const MainPage = () => {
           <Filters
             filters={filters}
             onFilterChange={handleFilterChange}
-            stats={calculateStats()}
+            stats={stats}
           />
           <BookGrid
             books={books}

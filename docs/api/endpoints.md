@@ -310,6 +310,43 @@ POST /api/books/
 
 **Примечание:** `author_ids` - список ID авторов (до 3-х)
 
+### Статистика фильтров
+```
+GET /api/books/stats/
+```
+**Query параметры:**
+- `libraries` - список ID библиотек (можно указать несколько раз: `?libraries=1&libraries=2`)
+- `category` - ID категории (опционально, для фильтрации по категории)
+- `hashtag` - ID хэштега (опционально, для фильтрации по хэштегу)
+- `search` - поисковый запрос (опционально, для фильтрации по поиску)
+
+**Ответ:** `200 OK`
+```json
+{
+  "status": {
+    "none": 50,
+    "reading": 28,
+    "read": 66,
+    "want_to_read": 49,
+    "want_to_reread": 65
+  },
+  "with_reviews": 93,
+  "with_electronic": 0,
+  "recently_added": 258
+}
+```
+
+**Примечание:** Endpoint возвращает статистику для всех книг в выбранных категориях и библиотеках (не только для текущей страницы). Используется для отображения счетчиков в фильтрах.
+
+**Примеры:**
+```
+GET /api/books/stats/?libraries=1&libraries=2
+GET /api/books/stats/?libraries=1&category=5
+GET /api/books/stats/?libraries=1&hashtag=3&search=война
+```
+
+---
+
 ### Детали книги
 ```
 GET /api/books/{id}/

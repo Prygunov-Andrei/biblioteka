@@ -287,6 +287,101 @@ class BookViewSet(viewsets.ModelViewSet):
         return queryset
     
     @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """
+        Возвращает статистику по фильтрам для всех книг в выбранных категориях и библиотеках.
+        Используется для отображения счетчиков в фильтрах.
+        """
+        from datetime import timedelta
+        from django.utils import timezone
+        from ..utils import parse_library_ids, get_category_queryset
+        
+        # Получаем параметры фильтрации
+        library_ids = parse_library_ids(request)
+        
+        # Если не выбраны библиотеки, возвращаем нулевые статистики
+        if not library_ids:
+            return Response({
+                'status': {
+                    'none': 0,
+                    'reading': 0,
+                    'read': 0,
+                    'want_to_read': 0,
+                    'want_to_reread': 0,
+                },
+                'with_reviews': 0,
+                'with_electronic': 0,
+                'recently_added': 0,
+            })
+        
+        # Получаем базовый queryset (без фильтров из get_queryset, чтобы избежать конфликтов)
+        queryset = Book.objects.all()
+        
+        # Фильтрация по библиотекам
+        queryset = queryset.filter(library_id__in=library_ids)
+        
+        # Получаем query параметры (поддержка как DRF Request, так и Django WSGIRequest)
+        query_params = getattr(request, 'query_params', request.GET)
+        
+        # Фильтрация по категории (если указана)
+        category_id = query_params.get('category')
+        if category_id:
+            try:
+                category_id = int(category_id)
+                queryset = get_category_queryset(category_id, include_subcategories=True)
+                queryset = queryset.filter(library_id__in=library_ids)
+            except (ValueError, Category.DoesNotExist):
+                pass
+        
+        # Фильтрация по хэштегу (если указан)
+        hashtag_id = query_params.get('hashtag')
+        if hashtag_id:
+            try:
+                hashtag_id = int(hashtag_id)
+                queryset = queryset.filter(hashtags__id=hashtag_id).distinct()
+            except ValueError:
+                pass
+        
+        # Фильтрация по поисковому запросу (если указан)
+        search = query_params.get('search')
+        if search:
+            search_variants = [
+                search.lower(),
+                search.capitalize(),
+                search.upper(),
+                search,
+            ]
+            search_variants = list(dict.fromkeys(search_variants))
+            
+            search_q = Q()
+            for variant in search_variants:
+                search_q |= (
+                    Q(title__icontains=variant) |
+                    Q(subtitle__icontains=variant) |
+                    Q(isbn__icontains=variant) |
+                    Q(authors__full_name__icontains=variant)
+                )
+            queryset = queryset.filter(search_q).distinct()
+        
+        # Подсчитываем статистику
+        stats = {
+            'status': {
+                'none': queryset.filter(status='none').count(),
+                'reading': queryset.filter(status='reading').count(),
+                'read': queryset.filter(status='read').count(),
+                'want_to_read': queryset.filter(status='want_to_read').count(),
+                'want_to_reread': queryset.filter(status='want_to_reread').count(),
+            },
+            'with_reviews': queryset.filter(reviews__isnull=False).distinct().count(),
+            'with_electronic': queryset.filter(electronic_versions__isnull=False).distinct().count(),
+            'recently_added': queryset.filter(
+                created_at__gte=timezone.now() - timedelta(days=7)
+            ).count(),
+        }
+        
+        return Response(stats)
+    
+    @action(detail=False, methods=['get'])
     def my_books(self, request):
         """Получить свои книги"""
         books = self.get_queryset().filter(owner=request.user)
