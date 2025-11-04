@@ -195,6 +195,10 @@
   color: #fff;
 }
 
+.hashtags-section {
+  margin-top: 30px;
+}
+
 .hashtags-container {
   padding: 10px 0;
   line-height: 1.8;
@@ -203,7 +207,7 @@
 
 .hashtag-link {
   cursor: pointer;
-  color: #666;
+  color: #4a90e2;
   transition: color 0.2s, text-decoration 0.2s;
   text-decoration: none;
   display: inline;
@@ -221,7 +225,7 @@
 }
 
 .dark-theme .hashtag-link {
-  color: #999;
+  color: #6ba3ff;
 }
 
 .dark-theme .hashtag-link:hover {

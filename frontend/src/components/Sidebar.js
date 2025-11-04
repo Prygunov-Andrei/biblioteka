@@ -33,7 +33,6 @@ const Sidebar = ({ categories, hashtags, selectedCategory, selectedHashtag, onCa
     <aside className="sidebar">
       <div className="sidebar-content">
         <div className="categories-section">
-          <h3 className="section-title">Категории</h3>
           <ul className="categories-list">
             <li
               className={`category-item ${!selectedCategory ? 'active' : ''}`}
@@ -44,7 +43,7 @@ const Sidebar = ({ categories, hashtags, selectedCategory, selectedHashtag, onCa
                 <span className="category-count">({totalBooksCount})</span>
               )}
             </li>
-            {categories.map((category) => {
+            {[...categories].sort((a, b) => a.name.localeCompare(b.name, 'ru')).map((category) => {
               const hasSubcategories = category.subcategories && category.subcategories.length > 0;
               const isExpanded = expandedCategories.has(category.id);
               const isSelected = isCategorySelected(category);
@@ -77,7 +76,7 @@ const Sidebar = ({ categories, hashtags, selectedCategory, selectedHashtag, onCa
                   </div>
                          {hasSubcategories && isExpanded && (
                            <ul className="subcategories-list">
-                             {category.subcategories.map((subcategory) => {
+                             {[...category.subcategories].sort((a, b) => a.name.localeCompare(b.name, 'ru')).map((subcategory) => {
                                return (
                                  <li
                                    key={subcategory.id}
@@ -104,7 +103,6 @@ const Sidebar = ({ categories, hashtags, selectedCategory, selectedHashtag, onCa
           </ul>
         </div>
         <div className="hashtags-section">
-          <h3 className="section-title">Хэштеги</h3>
           <div className="hashtags-container">
             {hashtags.length > 0 ? (
               hashtags.map((hashtag, index) => {

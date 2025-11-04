@@ -67,7 +67,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         
         parent_categories = Category.objects.filter(
             parent_category__isnull=True
-        ).order_by('order', 'name')
+        ).order_by('name')  # Сортировка по алфавиту
         
         # Если указаны библиотеки, фильтруем книги для подсчета
         if library_ids:
@@ -96,7 +96,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def subcategories(self, request, slug=None):
         """Возвращает подкатегории для данной категории"""
         category = self.get_object()
-        subcategories = category.subcategories.all().order_by('order', 'name')
+        subcategories = category.subcategories.all().order_by('name')  # Сортировка по алфавиту
         serializer = CategorySerializer(subcategories, many=True)
         return Response(serializer.data)
 

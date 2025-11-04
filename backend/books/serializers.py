@@ -120,7 +120,7 @@ class CategorySerializer(serializers.ModelSerializer):
     
     def get_subcategories(self, obj):
         """Возвращает подкатегории"""
-        subcategories = obj.subcategories.all().order_by('order', 'name')
+        subcategories = obj.subcategories.all().order_by('name')  # Сортировка по алфавиту
         return CategorySerializer(subcategories, many=True).data
 
 
@@ -139,7 +139,7 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         from books.models import Book
         
         library_ids = self.context.get('library_ids', [])
-        subcategories = obj.subcategories.all().order_by('order', 'name')
+        subcategories = obj.subcategories.all().order_by('name')  # Сортировка по алфавиту
         
         # Если указаны библиотеки, фильтруем книги для подсчета
         if library_ids:
