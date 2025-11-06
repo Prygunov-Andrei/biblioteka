@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { categoriesAPI, publishersAPI, authorsAPI } from '../services/api';
 import PublisherAutocomplete from './PublisherAutocomplete';
 import AuthorAutocomplete from './AuthorAutocomplete';
 import './BookFormStep.css';
 
-const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
+const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normalizedPages }) => {
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [selectedPageIndex, setSelectedPageIndex] = useState(0); // Индекс выбранной главной картинки
+  const isSearchingAuthorsRef = useRef(false); // Флаг для предотвращения повторного поиска авторов
 
   // Загружаем категории при монтировании компонента
   useEffect(() => {
@@ -66,7 +68,8 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
       condition_details: '',
       isbn: '',
       description: '',
-      authors_display: ''
+      authors_display: '',
+      cover_page_index: 0 // Индекс выбранной главной картинки (обложки)
     };
     
     // Если есть данные от LLM, используем их для предзаполнения
@@ -91,6 +94,10 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
   useEffect(() => {
     if (autoFillData && categories.length > 0) {
       console.log('BookFormStep: получены данные от LLM:', autoFillData);
+      
+      // Флаг для предотвращения повторного выполнения поиска
+      let isSearching = false;
+      
       setFormData(prev => {
         const categoryId = autoFillData.category_id !== null && autoFillData.category_id !== undefined
           ? (typeof autoFillData.category_id === 'number' ? autoFillData.category_id : parseInt(autoFillData.category_id))
@@ -145,7 +152,8 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
       }
 
       // Если LLM вернул авторов, ищем их в базе
-      if (autoFillData.authors && Array.isArray(autoFillData.authors) && autoFillData.authors.length > 0) {
+      if (autoFillData.authors && Array.isArray(autoFillData.authors) && autoFillData.authors.length > 0 && !isSearchingAuthorsRef.current) {
+        isSearchingAuthorsRef.current = true;
         console.log('BookFormStep: начинаем поиск авторов от LLM:', autoFillData.authors);
         const searchAuthors = async () => {
           try {
@@ -165,13 +173,38 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
                   console.log(`BookFormStep: найдено авторов для "${nameToSearch}":`, authors.length, authors);
                   
                   if (authors.length > 0) {
-                    // Находим точное совпадение или берем первое
+                    // Сначала ищем точное совпадение (без учета регистра)
                     const exactMatch = authors.find(a => 
-                      a.full_name.toLowerCase() === nameToSearch.toLowerCase()
+                      a.full_name.toLowerCase().trim() === nameToSearch.toLowerCase().trim()
                     );
-                    const selectedAuthor = exactMatch || authors[0];
-                    console.log(`BookFormStep: выбран автор:`, selectedAuthor);
-                    foundAuthors.push(selectedAuthor);
+                    
+                    if (exactMatch) {
+                      // Если есть точное совпадение, используем его
+                      console.log(`BookFormStep: найдено точное совпадение для "${nameToSearch}":`, exactMatch);
+                      // Проверяем, что этого автора еще нет в списке (избегаем дубликатов)
+                      if (!foundAuthors.some(a => a.id === exactMatch.id)) {
+                        foundAuthors.push(exactMatch);
+                      }
+                    } else {
+                      // Если точного совпадения нет, ищем автора, который начинается с запроса
+                      const startsWithMatch = authors.find(a => 
+                        a.full_name.toLowerCase().trim().startsWith(nameToSearch.toLowerCase().trim())
+                      );
+                      
+                      if (startsWithMatch) {
+                        console.log(`BookFormStep: найдено совпадение по началу для "${nameToSearch}":`, startsWithMatch);
+                        // Проверяем, что этого автора еще нет в списке
+                        if (!foundAuthors.some(a => a.id === startsWithMatch.id)) {
+                          foundAuthors.push(startsWithMatch);
+                        }
+                      } else {
+                        // Если нет точного совпадения и совпадения по началу, НЕ добавляем автора из базы
+                        // Это предотвращает добавление неправильных авторов из-за частичных совпадений
+                        // (например, "М. Кожаринов" при поиске "Е. М. Фатеева" из-за совпадения "М.")
+                        console.log(`BookFormStep: для "${nameToSearch}" нет точного совпадения или совпадения по началу. Найдено ${authors.length} авторов, но они не подходят. Автор будет создан как временный.`);
+                        console.log(`BookFormStep: найденные авторы (не подходят):`, authors.map(a => a.full_name));
+                      }
+                    }
                   } else {
                     console.log(`BookFormStep: автор "${nameToSearch}" не найден в базе`);
                   }
@@ -214,6 +247,8 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
             }
           } catch (error) {
             console.error('Ошибка поиска авторов:', error);
+          } finally {
+            isSearchingAuthorsRef.current = false;
           }
         };
         searchAuthors();
@@ -235,7 +270,10 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     e.stopPropagation(); // Предотвращаем всплытие события
     
@@ -245,26 +283,121 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
     }
     
     if (!formData.title || formData.title.trim() === '') {
-      alert('Название книги обязательно для заполнения');
+      setError('Название книги обязательно для заполнения');
       return;
     }
-    if (onNext) {
+
+    // Если есть onCreate, создаем книгу напрямую
+    if (onCreate) {
+      setCreating(true);
+      setError(null);
+      try {
+        await onCreate({
+          formData,
+          normalizedPages,
+        });
+      } catch (err) {
+        console.error('Ошибка создания книги:', err);
+        setError(err.response?.data?.error || err.message || 'Не удалось создать книгу');
+        setCreating(false);
+      }
+    } else if (onNext) {
+      // Если нет onCreate, переходим на следующий шаг (старая логика)
       onNext({ formData });
     }
   };
 
+  // Обновляем cover_page_index при изменении selectedPageIndex
+  useEffect(() => {
+    if (selectedPageIndex !== undefined && selectedPageIndex !== null) {
+      setFormData(prev => {
+        if (prev.cover_page_index !== selectedPageIndex) {
+          const updated = { ...prev, cover_page_index: selectedPageIndex };
+          if (onFormDataChange) {
+            onFormDataChange(updated);
+          }
+          return updated;
+        }
+        return prev;
+      });
+    }
+  }, [selectedPageIndex, onFormDataChange]);
+
+  // Получаем успешные нормализованные страницы
+  const successfulPages = normalizedPages && normalizedPages.length > 0
+    ? normalizedPages.filter(page => page.normalized_url && !page.error)
+    : [];
+
+  // Получаем URL для отображения страницы
+  const getPageUrl = (page) => {
+    if (!page) return null;
+    const url = page.normalized_url || page.original_url;
+    if (!url) return null;
+    // Если URL уже полный (http://), возвращаем как есть
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    // Иначе добавляем базовый URL
+    return `http://localhost:8000${url.startsWith('/') ? url : '/' + url}`;
+  };
+
   return (
     <div className="book-form-step">
-      <div className="book-form-header">
-        <h3>Заполнение данных книги</h3>
-        {autoFillData && (
-          <p className="book-form-hint">
-            Данные предзаполнены автоматически. Вы можете их отредактировать.
-          </p>
-        )}
-      </div>
-
       <form onSubmit={handleSubmit} className="book-form">
+        {/* Секция с картинками книги */}
+        {successfulPages.length > 0 && (
+          <div className="book-form-images-section">
+            <div className="book-pages-container">
+              <div className="book-pages-main">
+                {successfulPages[selectedPageIndex] && (
+                  <img
+                    src={getPageUrl(successfulPages[selectedPageIndex])}
+                    alt={`Страница ${selectedPageIndex + 1}`}
+                    className="book-pages-main-image"
+                    onError={(e) => {
+                      console.error('❌ Ошибка загрузки главной картинки:', e.target.src);
+                      const currentPage = successfulPages[selectedPageIndex];
+                      if (currentPage && currentPage.original_url && e.target.src !== getPageUrl(currentPage)) {
+                        e.target.src = getPageUrl(currentPage);
+                      }
+                    }}
+                  />
+                )}
+              </div>
+              <div className="book-pages-thumbnails">
+                {successfulPages.map((page, index) => {
+                  const pageUrl = getPageUrl(page);
+                  if (!pageUrl) return null;
+                  
+                  return (
+                    <div
+                      key={page.id || index}
+                      className={`book-pages-thumbnail ${index === selectedPageIndex ? 'active' : ''}`}
+                      onClick={() => {
+                        console.log('🖱️ Клик по миниатюре:', index);
+                        setSelectedPageIndex(index);
+                      }}
+                      title={`Страница ${index + 1}`}
+                    >
+                      <img
+                        src={pageUrl}
+                        alt={`Страница ${index + 1}`}
+                        className="book-pages-thumbnail-image"
+                        onError={(e) => {
+                          console.error('❌ Ошибка загрузки миниатюры:', e.target.src);
+                          if (page.original_url && e.target.src !== getPageUrl(page)) {
+                            e.target.src = getPageUrl(page);
+                          }
+                        }}
+                      />
+                      <span className="book-pages-thumbnail-number">{index + 1}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
         <div className="form-group">
           <label htmlFor="title" className="required">
             Название книги *
@@ -578,22 +711,26 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
           />
         </div>
 
+        {error && (
+          <div className="book-form-error" style={{ 
+            background: '#ffebee', 
+            border: '1px solid #f44336', 
+            borderRadius: '6px', 
+            padding: '12px 16px', 
+            marginBottom: '16px',
+            color: '#c62828'
+          }}>
+            {error}
+          </div>
+        )}
+
         <div className="wizard-navigation">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="wizard-button wizard-button-back"
-            >
-              ← Назад
-            </button>
-          )}
           <button
             type="submit"
             className="wizard-button wizard-button-next"
-            disabled={!formData.title || formData.title.trim() === ''}
+            disabled={!formData.title || formData.title.trim() === '' || creating}
           >
-            Далее →
+            {creating ? 'Создание...' : (onCreate ? 'Создать книгу' : 'Далее →')}
           </button>
         </div>
       </form>

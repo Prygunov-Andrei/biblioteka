@@ -3,7 +3,7 @@ import { booksAPI } from '../services/api';
 import ConfirmModal from './ConfirmModal';
 import './NormalizationStep.css';
 
-const NormalizationStep = ({ files, normalizedPages, onNormalizedPagesChange, onNext, onSkip, onBack }) => {
+const NormalizationStep = ({ files, normalizedPages, onNormalizedPagesChange, onNext, onSkip }) => {
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
@@ -233,15 +233,6 @@ const NormalizationStep = ({ files, normalizedPages, onNormalizedPagesChange, on
 
       {!processing && hasNormalized && (
         <div className="normalization-actions">
-          {onBack && (
-            <button
-              type="button"
-              className="normalization-button normalization-button-back"
-              onClick={onBack}
-            >
-              Назад
-            </button>
-          )}
           <button
             type="button"
             className="normalization-button normalization-button-skip"

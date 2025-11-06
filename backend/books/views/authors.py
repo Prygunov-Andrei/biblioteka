@@ -28,29 +28,46 @@ class AuthorViewSet(viewsets.ModelViewSet):
             search_words = [word.strip() for word in search_clean.replace(',', ' ').split() if word.strip()]
             
             if search_words:
-                # Строим Q-объект для поиска по каждому слову
-                q_objects = Q()
-                for word in search_words:
-                    q_objects |= Q(full_name__icontains=word)
+                # Сначала пытаемся найти точное совпадение (без учета регистра)
+                exact_match = queryset.filter(full_name__iexact=search_clean).first()
                 
-                queryset = queryset.filter(q_objects).distinct()
-                
-                # Сортировка по точности совпадения:
-                # 1. Точное совпадение всего запроса (без учета регистра)
-                # 2. Начинается с первого слова запроса
-                # 3. Содержит все слова запроса
-                # 4. Содержит первое слово запроса
-                # 5. Содержит любое слово запроса
-                queryset = queryset.annotate(
-                    match_priority=Case(
-                        When(full_name__iexact=search_clean, then=Value(1)),
-                        When(full_name__istartswith=search_words[0], then=Value(2)),
-                        When(full_name__icontains=search_clean, then=Value(3)),
-                        When(full_name__icontains=search_words[0], then=Value(4)),
-                        default=Value(5),
-                        output_field=IntegerField()
-                    )
-                ).order_by('match_priority', 'full_name')
+                if exact_match:
+                    # Если есть точное совпадение, возвращаем только его
+                    queryset = queryset.filter(id=exact_match.id)
+                else:
+                    # Если точного совпадения нет, ищем по словам
+                    # Сначала ищем авторов, которые содержат ВСЕ слова (AND логика)
+                    # Это более точный поиск, чем OR
+                    q_all_words = Q()
+                    for word in search_words:
+                        q_all_words &= Q(full_name__icontains=word)
+                    
+                    # Если не найдено авторов со всеми словами, используем OR логику
+                    authors_with_all_words = queryset.filter(q_all_words).distinct()
+                    
+                    if authors_with_all_words.exists():
+                        queryset = authors_with_all_words
+                    else:
+                        # Если не найдено авторов со всеми словами, используем OR логику
+                        q_objects = Q()
+                        for word in search_words:
+                            q_objects |= Q(full_name__icontains=word)
+                        queryset = queryset.filter(q_objects).distinct()
+                    
+                    # Сортировка по точности совпадения:
+                    # 1. Начинается с первого слова запроса
+                    # 2. Содержит все слова запроса
+                    # 3. Содержит первое слово запроса
+                    # 4. Содержит любое слово запроса
+                    queryset = queryset.annotate(
+                        match_priority=Case(
+                            When(full_name__istartswith=search_words[0], then=Value(1)),
+                            When(full_name__icontains=search_clean, then=Value(2)),
+                            When(full_name__icontains=search_words[0], then=Value(3)),
+                            default=Value(4),
+                            output_field=IntegerField()
+                        )
+                    ).order_by('match_priority', 'full_name')
             else:
                 # Если после очистки не осталось слов, используем исходный запрос
                 queryset = queryset.filter(full_name__icontains=search_clean).order_by('full_name')

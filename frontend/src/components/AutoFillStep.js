@@ -3,7 +3,7 @@ import { booksAPI } from '../services/api';
 import ConfirmModal from './ConfirmModal';
 import './AutoFillStep.css';
 
-const AutoFillStep = ({ normalizedPages, onAutoFillData, onNext, onSkip, onBack }) => {
+const AutoFillStep = ({ normalizedPages, onAutoFillData, onNext, onSkip }) => {
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
@@ -177,15 +177,6 @@ const AutoFillStep = ({ normalizedPages, onAutoFillData, onNext, onSkip, onBack 
       {/* Навигация показывается только если автозаполнение еще не выполнено или выполнено с ошибкой */}
       {!processing && (!autoFillResult || !autoFillResult.success) && (
         <div className="wizard-navigation">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="wizard-button wizard-button-back"
-            >
-              ← Назад
-            </button>
-          )}
           <button
             type="button"
             onClick={handleSkip}

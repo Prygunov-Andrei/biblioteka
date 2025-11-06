@@ -328,8 +328,9 @@ const MainPage = () => {
 
   const handleBookCreateComplete = () => {
     setIsBookCreateWizardOpen(false);
-    // Перезагружаем список книг после создания
+    // Перезагружаем список книг и категории (для обновления счетчиков) после создания
     loadBooks();
+    loadData(); // Обновляем категории с новыми счетчиками
   };
 
   return (

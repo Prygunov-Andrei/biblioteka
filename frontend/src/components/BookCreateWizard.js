@@ -82,7 +82,11 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
         if (currentStep === 1 && (!updatedData.pages || updatedData.pages.length === 0)) {
           nextStep = 4;
         }
-        // Если на шаге 1 и есть файлы, переходим к шагу 2
+        // Если на шаге 1 и есть файлы, но уже есть autoFillData - значит нормализация и LLM уже выполнены, переходим к шагу 4
+        else if (currentStep === 1 && updatedData.autoFillData) {
+          nextStep = 4;
+        }
+        // Если на шаге 1 и есть файлы, но нет autoFillData - переходим к шагу 2 (нормализация)
         else if (currentStep === 1) {
           nextStep = 2;
         }
@@ -133,31 +137,6 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
     setCurrentStep(nextStep);
   };
 
-  const handleBack = () => {
-    let prevStep = currentStep - 1;
-
-    // Логика возврата:
-    if (currentStep === 4) {
-      // Определяем, откуда мы пришли на шаг 4
-      if (!wizardData.pages || wizardData.pages.length === 0) {
-        prevStep = 1; // Если пришли на шаг 4 без страниц, возвращаемся к шагу 1
-      } else if (!wizardData.normalizedPages || wizardData.normalizedPages.length === 0) {
-        prevStep = 2; // Если пришли на шаг 4 без нормализованных страниц, возвращаемся к шагу 2
-      } else if (!wizardData.autoFillData) {
-        prevStep = 3; // Если пришли на шаг 4 без автозаполнения, возвращаемся к шагу 3
-      } else {
-        prevStep = 3; // Если есть автозаполнение, возвращаемся к шагу 3
-      }
-    } else if (currentStep === 3) {
-      // С шага 3 возвращаемся к шагу 2 (нормализация)
-      prevStep = 2;
-    } else if (currentStep === 2) {
-      // С шага 2 возвращаемся к шагу 1 (загрузка страниц)
-      prevStep = 1;
-    }
-
-    setCurrentStep(prevStep);
-  };
 
   const handleStepDataUpdate = (stepData) => {
     setWizardData(prev => ({ ...prev, ...stepData }));
@@ -228,6 +207,7 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
         library: libraryId, // Добавляем библиотеку (первую из списка пользователя, если не указана)
         status: data.formData.status || 'none', // Статус по умолчанию
         normalized_image_urls: normalizedImageUrls.length > 0 ? normalizedImageUrls : null, // Пути к нормализованным изображениям
+        cover_page_index: data.formData.cover_page_index !== undefined ? data.formData.cover_page_index : 0, // Индекс обложки
         // TODO: добавить hashtags, electronicVersions когда будут реализованы
       };
 
@@ -258,26 +238,10 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
       handleClose();
     } catch (error) {
       console.error('Ошибка создания книги:', error);
-      throw error; // Пробрасываем ошибку в ConfirmationStep
+      throw error; // Пробрасываем ошибку в BookFormStep для отображения
     }
   };
 
-  const getStepTitle = () => {
-    switch (currentStep) {
-      case 1:
-        return 'Шаг 1: Загрузка страниц';
-      case 2:
-        return 'Шаг 2: Нормализация страниц';
-      case 3:
-        return 'Шаг 3: Автозаполнение данных';
-      case 4:
-        return 'Шаг 4: Заполнение данных';
-      case 5:
-        return 'Шаг 5: Подтверждение';
-      default:
-        return 'Создание книги';
-    }
-  };
 
   return (
     <div 
@@ -288,7 +252,7 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
     >
       <div className="book-create-wizard" onClick={(e) => e.stopPropagation()}>
         <div className="book-create-wizard-header">
-          <h2>{getStepTitle()}</h2>
+          <h2>Добавить новую книгу</h2>
           <button 
             className="book-create-wizard-close" 
             onClick={handleCancelClick}
@@ -298,26 +262,6 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
           </button>
         </div>
 
-        <div className="book-create-wizard-progress">
-          <div className="wizard-steps">
-            {[1, 2, 3, 4, 5].map((step) => (
-              <div 
-                key={step}
-                className={`wizard-step ${step === currentStep ? 'active' : ''} ${step < currentStep ? 'completed' : ''}`}
-              >
-                <div className="wizard-step-number">{step}</div>
-                <div className="wizard-step-label">
-                  {step === 1 && 'Загрузка'}
-                  {step === 2 && 'Нормализация'}
-                  {step === 3 && 'Автозаполнение'}
-                  {step === 4 && 'Данные'}
-                  {step === 5 && 'Подтверждение'}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         <div className="book-create-wizard-body">
           {currentStep === 1 && (
             <UploadPagesStep
@@ -325,7 +269,9 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
               onFilesChange={(files) => handleStepDataUpdate({ pages: files })}
               onNext={handleNext}
               onSkip={handleSkip}
-              onBack={currentStep > 1 ? handleBack : null}
+              normalizedPages={wizardData.normalizedPages}
+              onNormalizedPagesChange={(normalizedPages) => handleStepDataUpdate({ normalizedPages })}
+              onAutoFillData={(autoFillData) => handleStepDataUpdate({ autoFillData })}
             />
           )}
           {currentStep === 2 && (
@@ -335,7 +281,6 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
               onNormalizedPagesChange={(normalizedPages) => handleStepDataUpdate({ normalizedPages })}
               onNext={handleNext}
               onSkip={handleSkip}
-              onBack={currentStep > 1 ? handleBack : null}
             />
           )}
                  {currentStep === 3 && (
@@ -344,7 +289,6 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
                      onAutoFillData={(autoFillData) => handleStepDataUpdate({ autoFillData })}
                      onNext={handleNext}
                      onSkip={handleSkip}
-                     onBack={currentStep > 1 ? handleBack : null}
                    />
                  )}
           {currentStep === 4 && (
@@ -352,17 +296,8 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
               autoFillData={wizardData.autoFillData}
               onFormDataChange={(formData) => handleStepDataUpdate({ formData })}
               onNext={handleNext}
-              onBack={currentStep > 1 ? handleBack : null}
-            />
-          )}
-          {currentStep === 5 && (
-            <ConfirmationStep
-              formData={wizardData.formData}
-              normalizedPages={wizardData.normalizedPages}
-              pages={wizardData.pages}
-              onBack={handleBack}
               onCreate={handleCreateBook}
-              onCancel={handleCancelClick}
+              normalizedPages={wizardData.normalizedPages}
             />
           )}
         </div>

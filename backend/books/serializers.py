@@ -165,20 +165,45 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
     def get_subcategories(self, obj):
         """Возвращает подкатегории"""
         from django.db.models import Count, Q
-        from books.models import Book
+        from books.models import Book, Category
         
         library_ids = self.context.get('library_ids', [])
-        subcategories = obj.subcategories.all().order_by('name')  # Сортировка по алфавиту
+        # Получаем подкатегории через prefetch (если доступен) или напрямую
+        subcategories_qs = obj.subcategories.all()
         
-        # Если указаны библиотеки, фильтруем книги для подсчета
-        if library_ids:
-            subcategories = subcategories.annotate(
-                books_count=Count(
-                    'books',
-                    filter=Q(books__library_id__in=library_ids),
-                    distinct=True
+        # Проверяем, есть ли уже аннотация books_count из prefetch
+        # Prefetch из tree() уже содержит аннотацию, если она была добавлена
+        # Проверяем первый элемент queryset (если есть) на наличие аннотации
+        needs_annotation = True
+        try:
+            # Пытаемся получить первый элемент без оценки всего queryset
+            first_sub = subcategories_qs.first()
+            if first_sub:
+                # Проверяем через getattr с default
+                test_count = getattr(first_sub, 'books_count', None)
+                # Если books_count доступен и это число, значит аннотация есть из prefetch
+                if test_count is not None and isinstance(test_count, (int, type(None))):
+                    needs_annotation = False
+        except (AttributeError, TypeError):
+            pass
+        
+        # Аннотируем только если нужно (если prefetch не содержал аннотацию)
+        if needs_annotation:
+            if library_ids:
+                subcategories_qs = subcategories_qs.annotate(
+                    books_count=Count(
+                        'books',
+                        filter=Q(books__library_id__in=library_ids),
+                        distinct=True
+                    )
                 )
-            )
+            else:
+                subcategories_qs = subcategories_qs.annotate(
+                    books_count=Count('books', distinct=True)
+                )
+        
+        # Сортируем и получаем список
+        subcategories = list(subcategories_qs.order_by('name'))
         
         # Используем простой сериализатор для подкатегорий (без вложенности)
         # Фильтруем подкатегории с нулевым количеством книг
@@ -510,6 +535,12 @@ class BookCreateSerializer(serializers.ModelSerializer):
         allow_empty=True,
         help_text='Список путей к нормализованным изображениям из временной директории (например, ["/media/temp/normalized/normalized_uuid1.jpg", ...])'
     )
+    cover_page_index = serializers.IntegerField(
+        write_only=True,
+        required=False,
+        allow_null=True,
+        help_text='Индекс страницы в normalized_image_urls, которая будет использоваться как обложка (cover_page). По умолчанию 0 (первая страница).'
+    )
     
     class Meta:
         model = Book
@@ -523,7 +554,7 @@ class BookCreateSerializer(serializers.ModelSerializer):
             'price_rub', 'description',
             'condition', 'condition_details',
             'seller_code', 'isbn',
-            'author_ids', 'hashtag_names', 'normalized_image_urls'
+            'author_ids', 'hashtag_names', 'normalized_image_urls', 'cover_page_index'
         ]
     
     def validate_author_ids(self, value):
@@ -541,6 +572,7 @@ class BookCreateSerializer(serializers.ModelSerializer):
         hashtag_names = validated_data.pop('hashtag_names', [])
         language_name = validated_data.pop('language_name', None)
         normalized_image_urls = validated_data.pop('normalized_image_urls', [])
+        cover_page_index = validated_data.pop('cover_page_index', 0)  # По умолчанию первая страница
         current_user = self.context['request'].user
         
         # Обрабатываем language_name: ищем язык по имени или создаем новый
@@ -563,7 +595,7 @@ class BookCreateSerializer(serializers.ModelSerializer):
         
         # Обрабатываем нормализованные страницы: перемещаем из temp в постоянное хранилище и создаем BookPage записи
         if normalized_image_urls:
-            BookService.process_normalized_pages(book, normalized_image_urls)
+            BookService.process_normalized_pages(book, normalized_image_urls, cover_page_index=cover_page_index)
         
         return book
 

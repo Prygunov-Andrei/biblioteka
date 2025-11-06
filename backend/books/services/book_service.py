@@ -76,7 +76,7 @@ class BookService:
         BookService._create_book_authors(book, author_ids)
     
     @staticmethod
-    def process_normalized_pages(book: Book, normalized_image_urls: List[str]) -> None:
+    def process_normalized_pages(book: Book, normalized_image_urls: List[str], cover_page_index: int = 0) -> None:
         """
         Обрабатывает нормализованные страницы: перемещает из временной директории в постоянное хранилище
         и создает BookPage записи.
@@ -158,7 +158,7 @@ class BookService:
                 
                 # Создаем BookPage запись
                 # Для original_image используем то же изображение (так как оно уже нормализовано)
-                BookPage.objects.create(
+                book_page = BookPage.objects.create(
                     book=book,
                     page_number=page_number,
                     original_image=relative_processed_path,  # Используем нормализованное изображение как оригинал
@@ -168,6 +168,12 @@ class BookService:
                     width=width,
                     height=height
                 )
+                
+                # Если это страница с индексом cover_page_index, устанавливаем её как обложку
+                if page_number - 1 == cover_page_index:  # page_number начинается с 1, cover_page_index с 0
+                    book.cover_page = book_page
+                    book.save(update_fields=['cover_page'])
+                    print(f"✅ Страница {page_number} установлена как обложка (cover_page)", file=sys.stderr)
                 
                 print(f"✅ Страница {page_number} обработана: {new_filename}", file=sys.stderr)
                 
