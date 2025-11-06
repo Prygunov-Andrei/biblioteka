@@ -1,0 +1,391 @@
+.upload-pages-step {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.upload-pages-instructions {
+  margin-bottom: 10px;
+}
+
+.upload-pages-instructions p {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.dark-theme .upload-pages-instructions p {
+  color: #ccc;
+}
+
+.upload-pages-hint {
+  font-size: 12px;
+  color: #666;
+}
+
+.dark-theme .upload-pages-hint {
+  color: #999;
+}
+
+.upload-pages-dropzone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  background: #fafafa;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.dark-theme .upload-pages-dropzone {
+  border-color: #555;
+  background: #1f1f1f;
+}
+
+.upload-pages-dropzone.drag-active {
+  border-color: #2196f3;
+  background: #e3f2fd;
+}
+
+.dark-theme .upload-pages-dropzone.drag-active {
+  border-color: #66bb6a;
+  background: #1b5e20;
+}
+
+.upload-pages-dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.upload-pages-dropzone-icon {
+  font-size: 48px;
+  opacity: 0.6;
+}
+
+.upload-pages-dropzone-text {
+  margin: 0;
+  color: #666;
+  font-size: 16px;
+}
+
+.dark-theme .upload-pages-dropzone-text {
+  color: #999;
+}
+
+.upload-pages-select-button {
+  background: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.dark-theme .upload-pages-select-button {
+  background: #66bb6a;
+}
+
+.upload-pages-select-button:hover {
+  background: #1976d2;
+}
+
+.dark-theme .upload-pages-select-button:hover {
+  background: #4caf50;
+}
+
+.upload-pages-error {
+  background: #ffebee;
+  border: 1px solid #f44336;
+  border-radius: 6px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.dark-theme .upload-pages-error {
+  background: #4a1f1f;
+  border-color: #ef5350;
+}
+
+.upload-pages-error p {
+  margin: 0;
+  color: #c62828;
+  font-size: 14px;
+  flex: 1;
+  white-space: pre-line;
+}
+
+.dark-theme .upload-pages-error p {
+  color: #ef5350;
+}
+
+.upload-pages-error-close {
+  background: none;
+  border: none;
+  color: #c62828;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.dark-theme .upload-pages-error-close {
+  color: #ef5350;
+}
+
+.upload-pages-error-close:hover {
+  background: rgba(198, 40, 40, 0.1);
+}
+
+.dark-theme .upload-pages-error-close:hover {
+  background: rgba(239, 83, 80, 0.2);
+}
+
+.upload-pages-files {
+  margin-top: 20px;
+}
+
+.upload-pages-files-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.upload-pages-files-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.dark-theme .upload-pages-files-header h3 {
+  color: #fff;
+}
+
+.upload-pages-clear-all {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dark-theme .upload-pages-clear-all {
+  border-color: #555;
+  color: #999;
+}
+
+.upload-pages-clear-all:hover {
+  background: #f5f5f5;
+  border-color: #999;
+  color: #333;
+}
+
+.dark-theme .upload-pages-clear-all:hover {
+  background: #333;
+  border-color: #777;
+  color: #fff;
+}
+
+.upload-pages-files-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.upload-pages-file-item {
+  position: relative;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dark-theme .upload-pages-file-item {
+  border-color: #444;
+  background: #1f1f1f;
+}
+
+.upload-pages-file-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dark-theme .upload-pages-file-item:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.upload-pages-file-preview {
+  width: 100%;
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+.dark-theme .upload-pages-file-preview {
+  background: #2a2a2a;
+}
+
+.upload-pages-file-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.upload-pages-file-info {
+  padding: 8px;
+}
+
+.upload-pages-file-name {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dark-theme .upload-pages-file-name {
+  color: #ccc;
+}
+
+.upload-pages-file-size {
+  margin: 0;
+  font-size: 11px;
+  color: #666;
+}
+
+.dark-theme .upload-pages-file-size {
+  color: #999;
+}
+
+.upload-pages-file-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  z-index: 1;
+}
+
+.upload-pages-file-remove:hover {
+  background: rgba(244, 67, 54, 0.9);
+}
+
+.upload-pages-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.dark-theme .upload-pages-actions {
+  border-top-color: #444;
+}
+
+.upload-pages-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-pages-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-pages-button-back {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.dark-theme .upload-pages-button-back {
+  background: #444;
+  color: #999;
+}
+
+.upload-pages-button-back:hover:not(:disabled) {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.dark-theme .upload-pages-button-back:hover:not(:disabled) {
+  background: #555;
+  color: #fff;
+}
+
+.upload-pages-button-skip {
+  background: transparent;
+  color: #666;
+  border: 1px solid #ccc;
+}
+
+.dark-theme .upload-pages-button-skip {
+  color: #999;
+  border-color: #555;
+}
+
+.upload-pages-button-skip:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #999;
+  color: #333;
+}
+
+.dark-theme .upload-pages-button-skip:hover:not(:disabled) {
+  background: #333;
+  border-color: #777;
+  color: #fff;
+}
+
+.upload-pages-button-next {
+  background: #2196f3;
+  color: white;
+}
+
+.dark-theme .upload-pages-button-next {
+  background: #66bb6a;
+}
+
+.upload-pages-button-next:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.dark-theme .upload-pages-button-next:hover:not(:disabled) {
+  background: #4caf50;
+}
+

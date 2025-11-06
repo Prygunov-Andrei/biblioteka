@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import BookGrid from '../components/BookGrid';
 import Filters from '../components/Filters';
 import BookDetailModal from '../components/BookDetailModal';
+import BookCreateWizard from '../components/BookCreateWizard';
 import { authAPI, categoriesAPI, booksAPI, hashtagsAPI } from '../services/api';
 import './MainPage.css';
 
@@ -72,6 +73,9 @@ const MainPage = () => {
   // Состояние для модального окна просмотра книги
   const [selectedBookId, setSelectedBookId] = useState(null);
   const [isBookDetailModalOpen, setIsBookDetailModalOpen] = useState(false);
+
+  // Состояние для мастера создания книги
+  const [isBookCreateWizardOpen, setIsBookCreateWizardOpen] = useState(false);
 
   useEffect(() => {
     loadHashtags();
@@ -315,8 +319,17 @@ const MainPage = () => {
   };
 
   const handleAddBook = () => {
-    // Пока просто консольный лог, позже добавим модальное окно
-    console.log('Добавить книгу');
+    setIsBookCreateWizardOpen(true);
+  };
+
+  const handleCloseBookCreateWizard = () => {
+    setIsBookCreateWizardOpen(false);
+  };
+
+  const handleBookCreateComplete = () => {
+    setIsBookCreateWizardOpen(false);
+    // Перезагружаем список книг после создания
+    loadBooks();
   };
 
   return (
@@ -387,6 +400,13 @@ const MainPage = () => {
         onEdit={handleEditBook}
         onTransfer={handleTransferBook}
         onDelete={handleDeleteBook}
+      />
+
+      {/* Мастер создания книги */}
+      <BookCreateWizard
+        isOpen={isBookCreateWizardOpen}
+        onClose={handleCloseBookCreateWizard}
+        onComplete={handleBookCreateComplete}
       />
     </div>
   );

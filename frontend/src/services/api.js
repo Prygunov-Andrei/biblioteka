@@ -232,6 +232,18 @@ export const booksAPI = {
     });
     return response.data;
   },
+  normalizePages: async (files) => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+    const response = await apiClient.post('/books/normalize-pages/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 // API методы для пользователя

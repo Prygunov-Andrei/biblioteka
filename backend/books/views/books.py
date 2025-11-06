@@ -19,8 +19,8 @@ from ..serializers import (
     BookElectronicSerializer, HashtagSerializer, LibrarySerializer
 )
 from ..permissions import IsOwnerOrReadOnly
-from rest_framework.permissions import AllowAny
-from ..services.document_processor import process_document
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from ..services.document_processor import process_document, normalize_pages_batch
 from ..services.hashtag_service import HashtagService
 from ..services.transfer_service import TransferService
 from ..exceptions import HashtagLimitExceeded, TransferError
@@ -50,10 +50,13 @@ class BookViewSet(viewsets.ModelViewSet):
         """
         Переопределяем права доступа для разных действий.
         Для list и retrieve - AllowAny (все могут просматривать)
+        Для normalize_pages - IsAuthenticated (требуется авторизация, но не проверка владельца)
         Для остальных действий - IsOwnerOrReadOnly (только владелец может редактировать)
         """
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
+        elif self.action == 'normalize_pages':
+            return [IsAuthenticated()]
         return [IsOwnerOrReadOnly()]
     
     def get_serializer_class(self):
@@ -295,6 +298,84 @@ class BookViewSet(viewsets.ModelViewSet):
             queryset = queryset.distinct()
         
         return queryset
+    
+    @action(detail=False, methods=['post'], url_path='normalize-pages', parser_classes=[MultiPartParser, FormParser])
+    def normalize_pages(self, request):
+        """
+        Нормализация страниц для мастера создания книги
+        POST /api/books/normalize-pages/
+        Content-Type: multipart/form-data
+        
+        Body:
+        - files: List[File] - загруженные изображения
+        
+        Response:
+        {
+            "normalized_images": [
+                {
+                    "id": "uuid",
+                    "original_filename": "page1.jpg",
+                    "normalized_url": "/media/temp/normalized/normalized_uuid.jpg",
+                    "width": 1920,
+                    "height": 2560
+                },
+                ...
+            ],
+            "total": 5,
+            "processed": 5
+        }
+        """
+        import sys
+        print("=" * 80, file=sys.stderr)
+        print("🔵 normalize_pages ENDPOINT ВЫЗВАН!", file=sys.stderr)
+        print(f"🔵 request.method: {request.method}", file=sys.stderr)
+        print(f"🔵 request.FILES: {list(request.FILES.keys())}", file=sys.stderr)
+        print(f"🔵 request.data: {list(request.data.keys()) if hasattr(request.data, 'keys') else 'N/A'}", file=sys.stderr)
+        sys.stderr.flush()
+        
+        files = request.FILES.getlist('files')
+        
+        if not files:
+            return Response(
+                {'error': 'Файлы не найдены'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            import sys
+            print(f"🔵 normalize_pages endpoint вызван с {len(files)} файлами", file=sys.stderr)
+            for i, f in enumerate(files):
+                print(f"  Файл {i+1}: {f.name}, размер: {f.size} байт, тип: {f.content_type}", file=sys.stderr)
+            sys.stderr.flush()
+            
+            # Обрабатываем файлы
+            normalized_images = normalize_pages_batch(files)
+            
+            print(f"🔵 normalize_pages_batch вернул {len(normalized_images)} результатов")
+            
+            # Фильтруем успешно обработанные изображения
+            successful = [img for img in normalized_images if img.get('normalized_url')]
+            failed = [img for img in normalized_images if img.get('error')]
+            
+            print(f"🔵 Успешно: {len(successful)}, Ошибок: {len(failed)}")
+            
+            return Response({
+                'normalized_images': normalized_images,
+                'total': len(normalized_images),
+                'processed': len(successful),
+                'failed': len(failed),
+                'errors': [{'filename': img['original_filename'], 'error': img.get('error')} 
+                          for img in failed] if failed else None
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            import traceback
+            print(f"🔴 ОШИБКА в normalize_pages endpoint: {str(e)}")
+            print(f"🔴 Traceback: {traceback.format_exc()}")
+            return Response(
+                {'error': f'Ошибка обработки: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=False, methods=['get'])
     def stats(self, request):
