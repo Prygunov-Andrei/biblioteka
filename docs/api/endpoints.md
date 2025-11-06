@@ -435,6 +435,87 @@ POST /api/books/{id}/process_pages/
 }
 ```
 
+### Нормализация страниц (для мастера создания книги)
+```
+POST /api/books/normalize-pages/
+```
+**Требуется авторизация:** Да (IsAuthenticated)
+
+**Body (multipart/form-data):**
+- `files` - массив файлов изображений (можно указать несколько раз)
+
+**Ответ:** `200 OK`
+```json
+{
+  "normalized_images": [
+    {
+      "id": "temp_uuid",
+      "original_filename": "page1.jpg",
+      "normalized_url": "/media/temp/normalized/normalized_uuid.jpg",
+      "width": 1920,
+      "height": 2560
+    }
+  ],
+  "total": 3,
+  "processed": 3,
+  "errors": []
+}
+```
+
+**Примечание:** Нормализованные изображения сохраняются во временную директорию `media/temp/normalized/` и должны быть перемещены в постоянное хранилище при создании книги.
+
+### Автозаполнение данных книги через LLM
+```
+POST /api/books/auto-fill/
+```
+**Требуется авторизация:** Да (IsAuthenticated)
+
+**Body (JSON):**
+```json
+{
+  "normalized_image_urls": [
+    "/media/temp/normalized/normalized_uuid1.jpg",
+    "/media/temp/normalized/normalized_uuid2.jpg"
+  ]
+}
+```
+
+**Ответ:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "title": "Название книги",
+    "subtitle": "Подзаголовок",
+    "category_id": 160,
+    "authors": ["Автор 1", "Автор 2"],
+    "publisher_name": "Название издательства",
+    "publication_place": "Москва",
+    "year": 2023,
+    "year_approx": null,
+    "pages_info": "300 стр., ил.",
+    "circulation": 5000,
+    "language_name": "Русский",
+    "binding_type": "hard",
+    "binding_details": "Твердый переплет",
+    "format": "regular",
+    "condition": "excellent",
+    "condition_details": null,
+    "isbn": "978-5-123456-78-9",
+    "description": "Полное описание книги..."
+  },
+  "confidence": 0.85,
+  "error": null
+}
+```
+
+**Ошибки:**
+- `403 Forbidden` - OpenAI API недоступен в регионе (требуется VPN)
+- `400 Bad Request` - неверный формат запроса
+- `500 Internal Server Error` - ошибка обработки на сервере
+
+**Примечание:** Использует OpenAI GPT-4o для анализа изображений страниц книги и извлечения структурированных данных.
+
 ---
 
 ## 5. Book Images (Изображения книг)

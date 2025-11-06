@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import UploadPagesStep from './UploadPagesStep';
 import NormalizationStep from './NormalizationStep';
+import AutoFillStep from './AutoFillStep';
+import BookFormStep from './BookFormStep';
 import ConfirmModal from './ConfirmModal';
 import './BookCreateWizard.css';
 
@@ -110,26 +112,49 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
     // Определяем следующий шаг при пропуске
     let nextStep = currentStep + 1;
 
-    // Если пропускаем шаг 1 (загрузку страниц), переходим к шагу 4
-    if (currentStep === 1) {
-      nextStep = 4;
-    }
-    // Если пропускаем шаг 2 (нормализацию), переходим к шагу 4
-    else if (currentStep === 2) {
-      nextStep = 4;
-    }
-    // Если пропускаем шаг 3 (автозаполнение), переходим к шагу 4
-    else if (currentStep === 3) {
-      nextStep = 4;
+    // Логика пропуска:
+    if (currentStep === 1) { // Пропуск загрузки страниц
+      nextStep = 4; // Переходим сразу к заполнению данных
+    } else if (currentStep === 2) { // Пропуск нормализации
+      // Если нет нормализованных страниц, пропускаем шаг 3 (автозаполнение)
+      if (!wizardData.normalizedPages || wizardData.normalizedPages.length === 0) {
+        nextStep = 4; // Переходим сразу к заполнению данных
+      } else {
+        nextStep = 3; // Переходим к автозаполнению
+      }
+      setWizardData(prev => ({ ...prev, normalizedPages: [] })); // Очищаем нормализованные страницы
+    } else if (currentStep === 3) { // Пропуск автозаполнения
+      nextStep = 4; // Переходим к заполнению данных
+      setWizardData(prev => ({ ...prev, autoFillData: null })); // Очищаем автозаполненные данные
     }
 
     setCurrentStep(nextStep);
   };
 
   const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+    let prevStep = currentStep - 1;
+
+    // Логика возврата:
+    if (currentStep === 4) {
+      // Определяем, откуда мы пришли на шаг 4
+      if (!wizardData.pages || wizardData.pages.length === 0) {
+        prevStep = 1; // Если пришли на шаг 4 без страниц, возвращаемся к шагу 1
+      } else if (!wizardData.normalizedPages || wizardData.normalizedPages.length === 0) {
+        prevStep = 2; // Если пришли на шаг 4 без нормализованных страниц, возвращаемся к шагу 2
+      } else if (!wizardData.autoFillData) {
+        prevStep = 3; // Если пришли на шаг 4 без автозаполнения, возвращаемся к шагу 3
+      } else {
+        prevStep = 3; // Если есть автозаполнение, возвращаемся к шагу 3
+      }
+    } else if (currentStep === 3) {
+      // С шага 3 возвращаемся к шагу 2 (нормализация)
+      prevStep = 2;
+    } else if (currentStep === 2) {
+      // С шага 2 возвращаемся к шагу 1 (загрузка страниц)
+      prevStep = 1;
     }
+
+    setCurrentStep(prevStep);
   };
 
   const handleStepDataUpdate = (stepData) => {
@@ -212,15 +237,22 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
               onBack={currentStep > 1 ? handleBack : null}
             />
           )}
-          {currentStep === 3 && (
-            <div className="wizard-step-placeholder">
-              <p>Шаг 3: Автозаполнение данных (будет реализован в следующем этапе)</p>
-            </div>
-          )}
+                 {currentStep === 3 && (
+                   <AutoFillStep
+                     normalizedPages={wizardData.normalizedPages}
+                     onAutoFillData={(autoFillData) => handleStepDataUpdate({ autoFillData })}
+                     onNext={handleNext}
+                     onSkip={handleSkip}
+                     onBack={currentStep > 1 ? handleBack : null}
+                   />
+                 )}
           {currentStep === 4 && (
-            <div className="wizard-step-placeholder">
-              <p>Шаг 4: Заполнение данных (будет реализован в следующем этапе)</p>
-            </div>
+            <BookFormStep
+              autoFillData={wizardData.autoFillData}
+              onFormDataChange={(formData) => handleStepDataUpdate({ formData })}
+              onNext={handleNext}
+              onBack={currentStep > 1 ? handleBack : null}
+            />
           )}
           {currentStep === 5 && (
             <div className="wizard-step-placeholder">

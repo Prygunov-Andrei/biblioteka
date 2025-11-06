@@ -23,6 +23,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from ..services.document_processor import process_document, normalize_pages_batch
 from ..services.hashtag_service import HashtagService
 from ..services.transfer_service import TransferService
+from ..services.llm_service import auto_fill_book_data
 from ..exceptions import HashtagLimitExceeded, TransferError
 from ..constants import MIN_IMAGE_ORDER, MAX_IMAGE_ORDER
 from ..pagination import ConditionalBookPagination
@@ -374,6 +375,99 @@ class BookViewSet(viewsets.ModelViewSet):
             print(f"🔴 Traceback: {traceback.format_exc()}")
             return Response(
                 {'error': f'Ошибка обработки: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'], url_path='auto-fill')
+    def auto_fill(self, request):
+        """
+        Автозаполнение данных книги через OpenAI GPT-4o
+        POST /api/books/auto-fill/
+        Content-Type: application/json
+        
+        Body:
+        {
+            "normalized_image_urls": [
+                "/media/temp/normalized/normalized_uuid1.jpg",
+                "/media/temp/normalized/normalized_uuid2.jpg",
+                ...
+            ]
+        }
+        
+        Response:
+        {
+            "success": true,
+            "data": {
+                "title": "...",
+                "subtitle": "...",
+                "category_id": 1,
+                "authors": ["...", "..."],
+                ...
+            },
+            "confidence": 0.85,
+            "error": null
+        }
+        """
+        import sys
+        
+        normalized_image_urls = request.data.get('normalized_image_urls', [])
+        
+        if not normalized_image_urls:
+            return Response(
+                {'error': 'Необходимо указать normalized_image_urls'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not isinstance(normalized_image_urls, list):
+            return Response(
+                {'error': 'normalized_image_urls должен быть массивом'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        print(f"🔵 auto_fill endpoint вызван с {len(normalized_image_urls)} изображениями", file=sys.stderr)
+        sys.stderr.flush()
+        
+        try:
+            result = auto_fill_book_data(normalized_image_urls)
+            
+            if result['success']:
+                return Response(result, status=status.HTTP_200_OK)
+            else:
+                return Response(
+                    {
+                        'success': False,
+                        'data': None,
+                        'error': result.get('error', 'Неизвестная ошибка'),
+                        'confidence': None
+                    },
+                    status=status.HTTP_200_OK  # 200, но с success=false для фронтенда
+                )
+                
+        except ValueError as e:
+            # Ошибка конфигурации (нет API ключа)
+            return Response(
+                {
+                    'success': False,
+                    'data': None,
+                    'error': str(e),
+                    'confidence': None
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"🔴 ОШИБКА в auto_fill endpoint: {str(e)}", file=sys.stderr)
+            print(f"🔴 Traceback: {error_trace}", file=sys.stderr)
+            sys.stderr.flush()
+            
+            return Response(
+                {
+                    'success': False,
+                    'data': None,
+                    'error': f'Ошибка обработки: {str(e)}',
+                    'confidence': None
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     

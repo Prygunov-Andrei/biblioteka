@@ -244,6 +244,72 @@ export const booksAPI = {
     });
     return response.data;
   },
+  autoFill: async (normalizedImageUrls) => {
+    const response = await apiClient.post('/books/auto-fill/', {
+      normalized_image_urls: normalizedImageUrls,
+    });
+    return response.data;
+  },
+};
+
+// API методы для авторов
+export const authorsAPI = {
+  search: async (query) => {
+    const response = await apiClient.get('/authors/', {
+      params: { search: query },
+    });
+    return response.data;
+  },
+  getAll: async () => {
+    const response = await apiClient.get('/authors/');
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await apiClient.get(`/authors/${id}/`);
+    return response.data;
+  },
+  create: async (authorData) => {
+    const response = await apiClient.post('/authors/', authorData);
+    return response.data;
+  },
+  update: async (id, authorData) => {
+    const response = await apiClient.patch(`/authors/${id}/`, authorData);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await apiClient.delete(`/authors/${id}/`);
+    return response.data;
+  },
+};
+
+// API методы для издательств
+export const publishersAPI = {
+  search: async (query) => {
+    const response = await apiClient.get('/publishers/', {
+      params: { search: query },
+    });
+    return response.data;
+  },
+  getAll: async () => {
+    const response = await apiClient.get('/publishers/');
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await apiClient.get(`/publishers/${id}/`);
+    return response.data;
+  },
+  create: async (publisherData) => {
+    const response = await apiClient.post('/publishers/', publisherData);
+    return response.data;
+  },
+  update: async (id, publisherData) => {
+    const response = await apiClient.patch(`/publishers/${id}/`, publisherData);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await apiClient.delete(`/publishers/${id}/`);
+    return response.data;
+  },
 };
 
 // API методы для пользователя

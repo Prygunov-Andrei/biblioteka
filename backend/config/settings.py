@@ -3,9 +3,18 @@
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent  # Корень проекта (biblioteka/)
+
+# Загружаем переменные окружения из .env файла в корне проекта
+env_path = PROJECT_ROOT / '.env'
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    # Пробуем загрузить из текущей директории (на случай если запускаем из корня)
+    load_dotenv()
 
 SECRET_KEY = 'dev-secret-key-change-in-production'
 DEBUG = True
