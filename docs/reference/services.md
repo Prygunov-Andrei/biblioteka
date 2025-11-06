@@ -106,6 +106,26 @@ HashtagService.normalize_name("фантастика")  # → "фантастик
 #### `update_book_authors(book: Book, author_ids: Optional[List[int]]) -> None`
 Обновляет авторов книги (удаляет старые связи, создает новые).
 
+#### `process_normalized_pages(book: Book, normalized_image_urls: List[str]) -> None`
+Обрабатывает нормализованные страницы: перемещает из временной директории в постоянное хранилище и создает BookPage записи.
+
+**Параметры:**
+- `book` — созданная книга
+- `normalized_image_urls` — список путей к нормализованным изображениям из временной директории (например, `["/media/temp/normalized/normalized_uuid1.jpg", ...]`)
+
+**Что делает:**
+- Перемещает файлы из `media/temp/normalized/` в `media/books/pages/processed/`
+- Создает записи `BookPage` для каждой страницы с метаданными (width, height, processing_status='completed')
+- Получает размеры изображений (ширина/высота) с помощью PIL
+- Удаляет временные файлы после перемещения
+
+**Пример:**
+```python
+# В BookCreateSerializer.create()
+if normalized_image_urls:
+    BookService.process_normalized_pages(book, normalized_image_urls)
+```
+
 ---
 
 ## document_processor
@@ -163,5 +183,5 @@ book = BookService.create_book_with_relations(
 
 ---
 
-**Последнее обновление:** 2025-11-03
+**Последнее обновление:** 2025-01-27
 

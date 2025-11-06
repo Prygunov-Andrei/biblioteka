@@ -250,6 +250,11 @@ export const booksAPI = {
     });
     return response.data;
   },
+  create: async (bookData) => {
+    // Отправляем данные как JSON (бэкенд обработает language_name и создаст связи)
+    const response = await apiClient.post('/books/', bookData);
+    return response.data;
+  },
 };
 
 // API методы для авторов

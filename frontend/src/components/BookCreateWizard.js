@@ -3,7 +3,9 @@ import UploadPagesStep from './UploadPagesStep';
 import NormalizationStep from './NormalizationStep';
 import AutoFillStep from './AutoFillStep';
 import BookFormStep from './BookFormStep';
+import ConfirmationStep from './ConfirmationStep';
 import ConfirmModal from './ConfirmModal';
+import { booksAPI, librariesAPI } from '../services/api';
 import './BookCreateWizard.css';
 
 const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
@@ -161,6 +163,105 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
     setWizardData(prev => ({ ...prev, ...stepData }));
   };
 
+  const handleCreateBook = async (data) => {
+    try {
+      // Если библиотека не указана, получаем первую библиотеку пользователя
+      let libraryId = data.formData.library || null;
+      if (!libraryId) {
+        try {
+          const userLibraries = await librariesAPI.getMyLibraries();
+          if (userLibraries && userLibraries.length > 0) {
+            libraryId = userLibraries[0].id;
+            console.log('Автоматически назначена библиотека:', userLibraries[0].name);
+          }
+        } catch (libError) {
+          console.warn('Не удалось загрузить библиотеки пользователя:', libError);
+          // Продолжаем без библиотеки - книга создастся, но может не отображаться в фильтрах
+        }
+      }
+
+      // Подготавливаем пути к нормализованным изображениям
+      const normalizedImageUrls = [];
+      if (data.normalizedPages && data.normalizedPages.length > 0) {
+        console.log('BookCreateWizard: обрабатываем нормализованные страницы:', data.normalizedPages);
+        data.normalizedPages.forEach((page, index) => {
+          if (page.normalized_url && !page.error) {
+            // Если URL относительный, оставляем как есть (бэкенд обработает)
+            // Если абсолютный, извлекаем путь
+            let url = page.normalized_url;
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+              // Извлекаем путь после /media/
+              const mediaIndex = url.indexOf('/media/');
+              if (mediaIndex !== -1) {
+                url = url.substring(mediaIndex);
+              }
+            }
+            normalizedImageUrls.push(url);
+            console.log(`BookCreateWizard: добавлен URL страницы ${index + 1}: ${url}`);
+          } else {
+            console.warn(`BookCreateWizard: пропущена страница ${index + 1} (нет URL или ошибка):`, page);
+          }
+        });
+      }
+      console.log('BookCreateWizard: итоговый список normalized_image_urls:', normalizedImageUrls);
+
+      // Подготавливаем данные для отправки на сервер
+      const bookData = {
+        title: data.formData.title,
+        subtitle: data.formData.subtitle || null,
+        category: data.formData.category_id || null,
+        author_ids: data.formData.author_ids || [],
+        publisher: data.formData.publisher || null,
+        publication_place: data.formData.publication_place || null,
+        year: data.formData.year ? parseInt(data.formData.year) : null,
+        year_approx: data.formData.year_approx || null,
+        pages_info: data.formData.pages_info || null,
+        circulation: data.formData.circulation ? parseInt(data.formData.circulation) : null,
+        language_name: data.formData.language_name || null, // Будет обработано на бэкенде
+        binding_type: data.formData.binding_type || null,
+        binding_details: data.formData.binding_details || null,
+        format: data.formData.format || null,
+        condition: data.formData.condition || null,
+        condition_details: data.formData.condition_details || null,
+        isbn: data.formData.isbn || null,
+        description: data.formData.description || null,
+        library: libraryId, // Добавляем библиотеку (первую из списка пользователя, если не указана)
+        status: data.formData.status || 'none', // Статус по умолчанию
+        normalized_image_urls: normalizedImageUrls.length > 0 ? normalizedImageUrls : null, // Пути к нормализованным изображениям
+        // TODO: добавить hashtags, electronicVersions когда будут реализованы
+      };
+
+      // Удаляем null и undefined значения (но оставляем library, status и normalized_image_urls, даже если они null/'none'/[])
+      Object.keys(bookData).forEach(key => {
+        if (bookData[key] === null || bookData[key] === undefined || bookData[key] === '') {
+          // Не удаляем library, status и normalized_image_urls, даже если они null/'none'/[]
+          if (key !== 'library' && key !== 'status' && key !== 'normalized_image_urls') {
+            delete bookData[key];
+          }
+        }
+      });
+      
+      // Если normalized_image_urls пустой массив, удаляем его
+      if (bookData.normalized_image_urls && bookData.normalized_image_urls.length === 0) {
+        delete bookData.normalized_image_urls;
+      }
+
+      // Отправляем запрос на создание книги
+      const createdBook = await booksAPI.create(bookData);
+
+      // Вызываем callback для обновления списка книг
+      if (onComplete) {
+        onComplete(createdBook);
+      }
+
+      // Закрываем wizard
+      handleClose();
+    } catch (error) {
+      console.error('Ошибка создания книги:', error);
+      throw error; // Пробрасываем ошибку в ConfirmationStep
+    }
+  };
+
   const getStepTitle = () => {
     switch (currentStep) {
       case 1:
@@ -255,9 +356,14 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
             />
           )}
           {currentStep === 5 && (
-            <div className="wizard-step-placeholder">
-              <p>Шаг 5: Подтверждение (будет реализован в следующем этапе)</p>
-            </div>
+            <ConfirmationStep
+              formData={wizardData.formData}
+              normalizedPages={wizardData.normalizedPages}
+              pages={wizardData.pages}
+              onBack={handleBack}
+              onCreate={handleCreateBook}
+              onCancel={handleCancelClick}
+            />
           )}
         </div>
 

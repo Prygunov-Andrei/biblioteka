@@ -497,6 +497,19 @@ class BookCreateSerializer(serializers.ModelSerializer):
         required=False,
         help_text='Список названий хэштегов (до 20)'
     )
+    language_name = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_null=True,
+        help_text='Название языка (например, "Русский"). Если язык не найден, будет создан новый.'
+    )
+    normalized_image_urls = serializers.ListField(
+        child=serializers.CharField(),
+        write_only=True,
+        required=False,
+        allow_empty=True,
+        help_text='Список путей к нормализованным изображениям из временной директории (например, ["/media/temp/normalized/normalized_uuid1.jpg", ...])'
+    )
     
     class Meta:
         model = Book
@@ -505,12 +518,12 @@ class BookCreateSerializer(serializers.ModelSerializer):
             'library', 'status',
             'publication_place', 'publisher',
             'year', 'year_approx', 'pages_info', 'circulation',
-            'language',
+            'language', 'language_name',
             'binding_type', 'binding_details', 'format',
             'price_rub', 'description',
             'condition', 'condition_details',
             'seller_code', 'isbn',
-            'author_ids', 'hashtag_names'
+            'author_ids', 'hashtag_names', 'normalized_image_urls'
         ]
     
     def validate_author_ids(self, value):
@@ -526,7 +539,19 @@ class BookCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         author_ids = validated_data.pop('author_ids', [])
         hashtag_names = validated_data.pop('hashtag_names', [])
+        language_name = validated_data.pop('language_name', None)
+        normalized_image_urls = validated_data.pop('normalized_image_urls', [])
         current_user = self.context['request'].user
+        
+        # Обрабатываем language_name: ищем язык по имени или создаем новый
+        if language_name and not validated_data.get('language'):
+            language_name_clean = language_name.strip()
+            if language_name_clean:
+                language, created = Language.objects.get_or_create(
+                    name=language_name_clean,
+                    defaults={'code': language_name_clean.lower()[:10]}  # Используем первые 10 символов как код
+                )
+                validated_data['language'] = language
         
         # Используем сервис для создания книги со всеми связями
         book = BookService.create_book_with_relations(
@@ -535,6 +560,10 @@ class BookCreateSerializer(serializers.ModelSerializer):
             hashtag_names=hashtag_names if hashtag_names else None,
             creator=current_user
         )
+        
+        # Обрабатываем нормализованные страницы: перемещаем из temp в постоянное хранилище и создаем BookPage записи
+        if normalized_image_urls:
+            BookService.process_normalized_pages(book, normalized_image_urls)
         
         return book
 

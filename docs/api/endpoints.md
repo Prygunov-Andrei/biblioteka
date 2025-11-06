@@ -278,6 +278,8 @@ GET /api/books/?page=2  # Вторая страница (если книг > 30)
 ```
 POST /api/books/
 ```
+**Требуется авторизация:** Да (IsAuthenticated)
+
 **Body (JSON):**
 ```json
 {
@@ -292,6 +294,7 @@ POST /api/books/
   "pages_info": "300 стр., ил.",
   "circulation": 5000,
   "language": 1,
+  "language_name": "Русский",
   "binding_type": "hard",
   "binding_details": "Твердый переплет, красный",
   "format": "regular",
@@ -300,15 +303,28 @@ POST /api/books/
   "condition": "excellent",
   "condition_details": "",
   "seller_code": "A-1-23",
-  "isbn": "978-5-123456-78-9"
+  "isbn": "978-5-123456-78-9",
+  "library": 1,
+  "status": "none",
+  "normalized_image_urls": [
+    "/media/temp/normalized/normalized_uuid1.jpg",
+    "/media/temp/normalized/normalized_uuid2.jpg"
+  ]
 }
 ```
 
 **Новые поля:**
 - `circulation` (Integer, опционально) - Тираж книги в штуках
 - `language` (Integer, опционально) - ID языка текста книги
+- `language_name` (String, опционально) - Название языка (например, "Русский"). Если язык не найден, будет создан новый
+- `library` (Integer, опционально) - ID библиотеки. Если не указан, автоматически назначается первая библиотека пользователя
+- `status` (String, опционально) - Статус книги (none, reading, read, want_to_read, want_to_reread). По умолчанию: "none"
+- `normalized_image_urls` (Array[String], опционально) - Список путей к нормализованным изображениям из временной директории. Файлы будут перемещены в постоянное хранилище и созданы BookPage записи
 
-**Примечание:** `author_ids` - список ID авторов (до 3-х)
+**Примечание:** 
+- `author_ids` - список ID авторов (до 3-х)
+- При создании книги нормализованные изображения автоматически перемещаются из `media/temp/normalized/` в `media/books/pages/processed/` и создаются BookPage записи
+- Если `library` не указан, автоматически назначается первая библиотека пользователя
 
 ### Статистика фильтров
 ```

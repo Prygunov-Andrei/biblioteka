@@ -55,6 +55,7 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
       year: '',
       year_approx: '',
       category_id: null,
+      category_name: null, // Название категории для отображения
       language_name: '',
       pages_info: '',
       circulation: '',
@@ -106,6 +107,8 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
           author_ids: [],
           // Убеждаемся, что category_id правильно обработан
           category_id: categoryId,
+          // Сохраняем название категории для отображения
+          category_name: selectedCategory ? (selectedCategory.fullName || selectedCategory.name) : null,
           // Для издательства: если LLM вернул publisher_name, ищем в базе
           publisher: null, // Будет установлено после поиска
         };
@@ -401,7 +404,10 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onBack }) => {
               value={formData.category_id || ''}
               onChange={(e) => {
                 const selectedId = e.target.value ? parseInt(e.target.value) : null;
+                const selectedCategory = selectedId ? categories.find(cat => cat.id === selectedId) : null;
                 handleChange('category_id', selectedId);
+                // Сохраняем название категории для отображения в ConfirmationStep
+                handleChange('category_name', selectedCategory ? (selectedCategory.fullName || selectedCategory.name) : null);
               }}
               className="form-input"
             >
