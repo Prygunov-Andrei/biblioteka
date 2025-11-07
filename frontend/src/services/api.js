@@ -234,7 +234,12 @@ export const booksAPI = {
   },
   normalizePages: async (files) => {
     const formData = new FormData();
-    files.forEach((file) => {
+    // Проверяем, что файлы - это объекты File
+    files.forEach((file, index) => {
+      if (!(file instanceof File) && !(file instanceof Blob)) {
+        console.error(`Файл ${index} не является объектом File или Blob:`, file);
+        throw new Error(`Файл ${index} имеет неправильный тип. Ожидается File или Blob.`);
+      }
       formData.append('files', file);
     });
     const response = await apiClient.post('/books/normalize-pages/', formData, {
