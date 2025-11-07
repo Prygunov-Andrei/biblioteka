@@ -11,6 +11,8 @@ const PublisherAutocomplete = ({ value, onChange, placeholder = 'Введите 
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [debounceTimer, setDebounceTimer] = useState(null);
+  const [hasBeenFocused, setHasBeenFocused] = useState(false);
+  const [userHasTyped, setUserHasTyped] = useState(false);
   const wrapperRef = useRef(null);
 
   // Инициализация при получении value извне
@@ -19,20 +21,35 @@ const PublisherAutocomplete = ({ value, onChange, placeholder = 'Введите 
       // Если передан объект издательства
       setSelectedPublisher(value);
       setSearchQuery(value.name);
+      setShowSuggestions(false); // Не показываем список при инициализации
+      setUserHasTyped(false);
+      setHasBeenFocused(false); // Сбрасываем флаг фокуса при инициализации
     } else if (value && typeof value === 'string' && value.trim()) {
       // Если передан просто текст (название издательства)
       setSearchQuery(value);
       setSelectedPublisher(null);
+      setShowSuggestions(false); // Не показываем список при инициализации
+      setUserHasTyped(false);
+      setHasBeenFocused(false); // Сбрасываем флаг фокуса при инициализации
     } else if (!value) {
       setSearchQuery('');
       setSelectedPublisher(null);
+      setShowSuggestions(false);
+      setUserHasTyped(false);
+      setHasBeenFocused(false); // Сбрасываем флаг фокуса при очистке
     }
   }, [value]);
 
-  // Поиск издательств с debounce
+  // Поиск издательств с debounce (только если пользователь взаимодействовал с полем)
   useEffect(() => {
     if (debounceTimer) {
       clearTimeout(debounceTimer);
+    }
+
+    // Не запускаем поиск автоматически при инициализации
+    // Только если пользователь ввел текст или сфокусировался на поле
+    if (!hasBeenFocused && !userHasTyped) {
+      return;
     }
 
     if (searchQuery.trim().length < 2) {
@@ -46,7 +63,10 @@ const PublisherAutocomplete = ({ value, onChange, placeholder = 'Введите 
       try {
         const results = await publishersAPI.search(searchQuery.trim());
         setSuggestions(Array.isArray(results) ? results : (results.results || []));
-        setShowSuggestions(true);
+        // Показываем список только если пользователь взаимодействовал с полем
+        if (hasBeenFocused || userHasTyped) {
+          setShowSuggestions(true);
+        }
       } catch (error) {
         console.error('Ошибка поиска издательств:', error);
         setSuggestions([]);
@@ -62,7 +82,7 @@ const PublisherAutocomplete = ({ value, onChange, placeholder = 'Введите 
         clearTimeout(debounceTimer);
       }
     };
-  }, [searchQuery]);
+  }, [searchQuery, hasBeenFocused, userHasTyped]);
 
   // Закрытие выпадающего списка при клике вне компонента
   useEffect(() => {
@@ -82,11 +102,13 @@ const PublisherAutocomplete = ({ value, onChange, placeholder = 'Введите 
     const newValue = e.target.value;
     setSearchQuery(newValue);
     setSelectedPublisher(null);
+    setUserHasTyped(true); // Пользователь начал вводить текст
     setShowSuggestions(true);
     
     // Если поле очищено, передаем пустую строку
     if (!newValue.trim()) {
       onChange && onChange('');
+      setShowSuggestions(false);
     }
   };
 
@@ -94,6 +116,7 @@ const PublisherAutocomplete = ({ value, onChange, placeholder = 'Введите 
     setSelectedPublisher(publisher);
     setSearchQuery(publisher.name);
     setShowSuggestions(false);
+    setUserHasTyped(false); // Сбрасываем флаг после выбора
     onChange && onChange(publisher);
   };
 
@@ -110,6 +133,8 @@ const PublisherAutocomplete = ({ value, onChange, placeholder = 'Введите 
   };
 
   const handleInputFocus = () => {
+    setHasBeenFocused(true); // Пользователь сфокусировался на поле
+    
     // Показываем выпадающий список при фокусе, если есть текст для поиска
     if (searchQuery.trim().length >= 2) {
       // Если уже есть результаты - показываем их

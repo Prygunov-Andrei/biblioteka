@@ -265,6 +265,18 @@ export const booksAPI = {
     const response = await apiClient.get(`/books/${bookId}/pages/`);
     return response.data;
   },
+  uploadPages: async (bookId, files) => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('pages', file);
+    });
+    const response = await apiClient.post(`/books/${bookId}/upload_pages/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
   deletePage: async (bookId, pageId) => {
     const response = await apiClient.delete(`/books/${bookId}/pages/${pageId}/`);
     return response.data;

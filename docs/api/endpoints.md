@@ -440,6 +440,28 @@ POST /api/books/{id}/upload_pages/
 **Body (multipart/form-data):**
 - `pages` - массив файлов изображений
 
+**Ответ:** `201 Created`
+```json
+{
+  "message": "Загружено 3 страниц",
+  "pages": [
+    {
+      "id": 1,
+      "page_number": 1,
+      "original_url": "/media/books/pages/original/page1.jpg",
+      "processed_url": null,
+      "processing_status": "pending"
+    }
+  ]
+}
+```
+
+### Удаление страницы
+```
+DELETE /api/books/{id}/pages/{page_id}/
+```
+**Ответ:** `204 No Content`
+
 ### Обработка страниц
 ```
 POST /api/books/{id}/process_pages/
@@ -568,6 +590,12 @@ PATCH /api/book-images/{id}/
 DELETE /api/book-images/{id}/
 ```
 
+### Удаление изображения через BookViewSet
+```
+DELETE /api/books/{id}/images/{image_id}/
+```
+**Ответ:** `204 No Content`
+
 ---
 
 ## 6. Book Electronic (Электронные версии)
@@ -609,6 +637,12 @@ PATCH /api/book-electronic/{id}/
 ```
 DELETE /api/book-electronic/{id}/
 ```
+
+### Удаление электронной версии через BookViewSet
+```
+DELETE /api/books/{id}/electronic_versions/{version_id}/
+```
+**Ответ:** `204 No Content`
 
 ---
 
@@ -1084,6 +1118,40 @@ GET /api/books/{id}/
 В детальном ответе книги (`BookDetailSerializer`) включено поле `reviews` со всеми отзывами и `average_rating` (средний рейтинг).
 
 **Примечание:** Для книг со статусом `read` и `want_to_reread` в ответе также включено поле `reading_dates` со всеми датами прочтения. В интерфейсе отображается дата первого прочтения (самая ранняя) рядом со статусом.
+
+### Управление датами прочтения
+```
+GET /api/books/{id}/reading_dates/        # Список дат прочтения
+POST /api/books/{id}/reading_dates/       # Добавление даты прочтения
+DELETE /api/books/{id}/reading_dates/{date_id}/  # Удаление даты прочтения
+```
+
+**POST Body (JSON):**
+```json
+{
+  "date": "2024-01-15",
+  "notes": "Прочитал за один вечер"
+}
+```
+
+**Ответ (POST):** `201 Created`
+```json
+{
+  "id": 1,
+  "book": 1,
+  "date": "2024-01-15",
+  "notes": "Прочитал за один вечер",
+  "created_at": "2024-01-15T12:00:00Z",
+  "updated_at": "2024-01-15T12:00:00Z"
+}
+```
+
+**Ответ (DELETE):** `204 No Content`
+
+**Примечание:** 
+- Доступно только для книг со статусом `read` или `want_to_reread`
+- Дата должна быть в формате `YYYY-MM-DD`
+- Одна дата прочтения на книгу (unique constraint на `book` и `date`)
 
 **Расширенные Query параметры для списка книг:**
 - `owner` - ID или username владельца

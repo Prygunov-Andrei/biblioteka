@@ -28,7 +28,9 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
   // Состояние для страниц
   const [bookPages, setBookPages] = useState([]);
   const [loadingPages, setLoadingPages] = useState(false);
+  const [uploadingPages, setUploadingPages] = useState(false);
   const [confirmDeletePage, setConfirmDeletePage] = useState(null);
+  const fileInputRef = useRef(null);
   
   // Состояние для электронных версий
   const [electronicVersions, setElectronicVersions] = useState([]);
@@ -481,6 +483,61 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
   };
 
   // Обработчики для страниц
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      handleUploadPages(files);
+    }
+    // Сбрасываем значение input, чтобы можно было выбрать те же файлы снова
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleUploadPages = async (files) => {
+    if (!book || !files || files.length === 0) {
+      return;
+    }
+
+    try {
+      setUploadingPages(true);
+      setError(null);
+
+      // Проверяем форматы файлов
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const invalidFiles = files.filter(file => !allowedTypes.includes(file.type));
+      
+      if (invalidFiles.length > 0) {
+        setError('Поддерживаются только изображения: JPEG, PNG, WebP');
+        setUploadingPages(false);
+        return;
+      }
+
+      // Проверяем размер файлов (максимум 10MB на файл)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      const largeFiles = files.filter(file => file.size > maxSize);
+      
+      if (largeFiles.length > 0) {
+        setError(`Размер некоторых файлов превышает 10MB`);
+        setUploadingPages(false);
+        return;
+      }
+
+      const response = await booksAPI.uploadPages(book.id, files);
+      
+      // Перезагружаем список страниц
+      const pages = await booksAPI.getPages(book.id);
+      setBookPages(pages || []);
+      
+      setError(null);
+    } catch (err) {
+      console.error('Ошибка загрузки страниц:', err);
+      setError(err.response?.data?.error || 'Не удалось загрузить страницы');
+    } finally {
+      setUploadingPages(false);
+    }
+  };
+
   const handleDeletePage = async (pageId) => {
     try {
       await booksAPI.deletePage(book.id, pageId);
@@ -996,9 +1053,40 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
               )}
 
               {/* Управление страницами */}
-              {bookPages.length > 0 && (
-                <div className="form-group" style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e0e0e0' }}>
-                  <label>Страницы книги</label>
+              <div className="form-group" style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e0e0e0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <label style={{ margin: 0 }}>Страницы книги</label>
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      multiple
+                      onChange={handleFileSelect}
+                      style={{ display: 'none' }}
+                      disabled={uploadingPages || !book}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingPages || !book}
+                      className="book-edit-modal-button book-edit-modal-button-save"
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '14px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {uploadingPages ? 'Загрузка...' : '+ Добавить страницы'}
+                    </button>
+                  </div>
+                </div>
+                
+                {loadingPages ? (
+                  <div style={{ color: '#666', fontStyle: 'italic', padding: '20px', textAlign: 'center' }}>
+                    Загрузка страниц...
+                  </div>
+                ) : bookPages.length > 0 ? (
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
@@ -1064,8 +1152,20 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div style={{
+                    padding: '40px 20px',
+                    textAlign: 'center',
+                    color: '#666',
+                    fontStyle: 'italic',
+                    border: '2px dashed #e0e0e0',
+                    borderRadius: '8px',
+                    background: '#fafafa'
+                  }}>
+                    Нет загруженных страниц
+                  </div>
+                )}
+              </div>
 
               {/* Управление электронными версиями */}
               {electronicVersions.length > 0 && (
