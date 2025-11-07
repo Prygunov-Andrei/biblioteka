@@ -154,6 +154,7 @@ export const categoriesAPI = {
   getTree: async (params = {}) => {
     // Возвращает дерево категорий (родительские с подкатегориями)
     // Поддерживает фильтрацию по библиотекам для подсчета книг
+    // Если библиотеки не указаны, возвращает пустой список
     const queryParams = new URLSearchParams();
     if (params.libraries && params.libraries.length > 0) {
       params.libraries.forEach(libId => {
@@ -163,6 +164,12 @@ export const categoriesAPI = {
     const queryString = queryParams.toString();
     const url = `/categories/tree/${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get(url);
+    return response.data;
+  },
+  getAllTree: async () => {
+    // Возвращает ВСЕ категории в виде дерева (для выбора при создании книги)
+    // Не фильтрует по библиотекам - возвращает все категории независимо от наличия книг
+    const response = await apiClient.get('/categories/tree/all/');
     return response.data;
   },
   getBySlug: async (slug) => {

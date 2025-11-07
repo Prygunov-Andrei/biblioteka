@@ -15,7 +15,8 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
     const loadCategories = async () => {
       try {
         setLoadingCategories(true);
-        const categoriesData = await categoriesAPI.getTree();
+        // Для выбора категории при создании книги нужны ВСЕ категории, независимо от библиотек
+        const categoriesData = await categoriesAPI.getAllTree();
         // Преобразуем дерево категорий в плоский список для select
         const flattenCategories = (cats, parentName = '') => {
           let result = [];

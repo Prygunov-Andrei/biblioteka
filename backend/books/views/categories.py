@@ -123,6 +123,42 @@ class CategoryViewSet(viewsets.ModelViewSet):
         )
         return Response(serializer.data)
     
+    @action(detail=False, methods=['get'], url_path='tree/all')
+    def tree_all(self, request):
+        """
+        Возвращает ВСЕ категории в виде дерева (для выбора при создании книги).
+        Не фильтрует по библиотекам - возвращает все категории независимо от наличия книг.
+        """
+        from django.db.models import Count, Prefetch
+        
+        # Аннотируем подкатегории (все, без фильтрации)
+        subcategories_queryset = Category.objects.filter(
+            parent_category__isnull=False
+        ).annotate(
+            books_count=Count('books', distinct=True)
+        ).order_by('name')
+        
+        # Формируем queryset для родительских категорий (все, без фильтрации)
+        parent_categories = Category.objects.filter(
+            parent_category__isnull=True
+        ).annotate(
+            books_count_annotated=Count('books', distinct=True),
+            subcategories_books_count_annotated=Count('subcategories__books', distinct=True)
+        ).order_by('name')
+        
+        # Добавляем prefetch для подкатегорий
+        parent_categories = parent_categories.prefetch_related(
+            Prefetch('subcategories', queryset=subcategories_queryset)
+        )
+        
+        # НЕ фильтруем - возвращаем все категории
+        serializer = CategoryTreeSerializer(
+            parent_categories, 
+            many=True,
+            context={'request': request, 'library_ids': None}
+        )
+        return Response(serializer.data)
+    
     @action(detail=True, methods=['get'])
     def subcategories(self, request, slug=None):
         """Возвращает подкатегории для данной категории"""
