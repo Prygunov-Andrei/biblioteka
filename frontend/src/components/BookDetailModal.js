@@ -6,7 +6,7 @@ import EditReviewModal from './EditReviewModal';
 import ConfirmModal from './ConfirmModal';
 import './BookDetailModal.css';
 
-const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete }) => {
+const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete, refreshTrigger }) => {
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -21,7 +21,27 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
       loadCurrentUser();
       setSelectedPageIndex(0); // Сбрасываем выбранную страницу при открытии
     }
-  }, [isOpen, bookId]);
+  }, [isOpen, bookId]); // Загружаем при открытии или изменении bookId
+
+  // Отдельный эффект для перезагрузки данных при изменении refreshTrigger
+  useEffect(() => {
+    // Перезагружаем данные только если модальное окно открыто и есть bookId
+    // refreshTrigger может быть undefined (если не передан), поэтому проверяем это
+    if (isOpen && bookId) {
+      // Если refreshTrigger передан и больше 0, это сигнал к перезагрузке
+      if (refreshTrigger !== undefined && refreshTrigger > 0) {
+        console.log('🔄 BookDetailModal: перезагрузка данных из-за изменения refreshTrigger:', refreshTrigger);
+        console.log('🔄 BookDetailModal: isOpen=', isOpen, 'bookId=', bookId);
+        // Небольшая задержка, чтобы убедиться, что сервер обработал изменения
+        const timer = setTimeout(() => {
+          console.log('🔄 BookDetailModal: начинаем перезагрузку данных...');
+          loadBookDetails();
+        }, 150);
+        return () => clearTimeout(timer);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger, isOpen, bookId]); // Перезагружаем при изменении refreshTrigger, isOpen или bookId
 
   const loadCurrentUser = async () => {
     try {
@@ -52,6 +72,7 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
       console.log('📖 Загружена книга:', data);
       console.log('📄 Страницы книги:', data.pages);
       console.log('📄 Количество страниц:', data.pages ? data.pages.length : 0);
+      console.log('📚 Издательство:', data.publisher_name || (data.publisher?.name || 'не указано'));
       if (data.pages && data.pages.length > 0) {
         console.log('📄 Первая страница:', data.pages[0]);
         console.log('📄 URL первой страницы:', {
@@ -460,12 +481,10 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
                   <span className="book-detail-label">Название:</span>
                   <span className="book-detail-value">{formatField(book.title)}</span>
                 </div>
-                {book.subtitle && (
-                  <div className="book-detail-field">
-                    <span className="book-detail-label">Подзаголовок:</span>
-                    <span className="book-detail-value">{book.subtitle}</span>
-                  </div>
-                )}
+                <div className="book-detail-field">
+                  <span className="book-detail-label">Подзаголовок:</span>
+                  <span className="book-detail-value">{formatField(book.subtitle)}</span>
+                </div>
                 <div className="book-detail-field">
                   <span className="book-detail-label">Категория:</span>
                   <span className="book-detail-value">{formatCategory()}</span>
@@ -488,6 +507,12 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
                     {book.year ? book.year : (book.year_approx || 'Не указан')}
                   </span>
                 </div>
+                {book.year && book.year_approx && (
+                  <div className="book-detail-field">
+                    <span className="book-detail-label">Приблизительный год:</span>
+                    <span className="book-detail-value">{book.year_approx}</span>
+                  </div>
+                )}
               </section>
 
               {/* Физические характеристики */}
@@ -508,12 +533,10 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
                   <span className="book-detail-label">Тип переплета:</span>
                   <span className="book-detail-value">{formatBindingType()}</span>
                 </div>
-                {book.binding_details && (
-                  <div className="book-detail-field">
-                    <span className="book-detail-label">Детали переплета:</span>
-                    <span className="book-detail-value">{book.binding_details}</span>
-                  </div>
-                )}
+                <div className="book-detail-field">
+                  <span className="book-detail-label">Детали переплета:</span>
+                  <span className="book-detail-value">{formatField(book.binding_details)}</span>
+                </div>
                 <div className="book-detail-field">
                   <span className="book-detail-label">Формат:</span>
                   <span className="book-detail-value">{formatFormat()}</span>
@@ -522,12 +545,10 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
                   <span className="book-detail-label">Состояние:</span>
                   <span className="book-detail-value">{formatCondition()}</span>
                 </div>
-                {book.condition_details && (
-                  <div className="book-detail-field">
-                    <span className="book-detail-label">Детали состояния:</span>
-                    <span className="book-detail-value">{book.condition_details}</span>
-                  </div>
-                )}
+                <div className="book-detail-field">
+                  <span className="book-detail-label">Детали состояния:</span>
+                  <span className="book-detail-value">{formatField(book.condition_details)}</span>
+                </div>
               </section>
 
               {/* Коммерческая информация */}
@@ -550,12 +571,10 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
 
               {/* Дополнительная информация */}
               <section className="book-detail-section">
-                {book.description && (
-                  <div className="book-detail-field book-detail-field-full">
-                    <span className="book-detail-label">Описание:</span>
-                    <span className="book-detail-value">{book.description}</span>
-                  </div>
-                )}
+                <div className="book-detail-field book-detail-field-full">
+                  <span className="book-detail-label">Описание:</span>
+                  <span className="book-detail-value">{formatField(book.description)}</span>
+                </div>
                 <div className="book-detail-field">
                   <span className="book-detail-label">Статус чтения:</span>
                   <span className="book-detail-value">

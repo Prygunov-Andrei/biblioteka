@@ -6,6 +6,7 @@ import BookGrid from '../components/BookGrid';
 import Filters from '../components/Filters';
 import BookDetailModal from '../components/BookDetailModal';
 import BookCreateWizard from '../components/BookCreateWizard';
+import BookEditModal from '../components/BookEditModal';
 import { authAPI, categoriesAPI, booksAPI, hashtagsAPI } from '../services/api';
 import './MainPage.css';
 
@@ -73,9 +74,14 @@ const MainPage = () => {
   // Состояние для модального окна просмотра книги
   const [selectedBookId, setSelectedBookId] = useState(null);
   const [isBookDetailModalOpen, setIsBookDetailModalOpen] = useState(false);
+  const [bookDetailModalRefreshTrigger, setBookDetailModalRefreshTrigger] = useState(0); // Триггер для перезагрузки данных
 
   // Состояние для мастера создания книги
   const [isBookCreateWizardOpen, setIsBookCreateWizardOpen] = useState(false);
+
+  // Состояние для модального окна редактирования книги
+  const [editingBook, setEditingBook] = useState(null);
+  const [isBookEditModalOpen, setIsBookEditModalOpen] = useState(false);
 
   useEffect(() => {
     loadHashtags();
@@ -147,9 +153,9 @@ const MainPage = () => {
   };
 
   const handleEditBook = (book) => {
-    // TODO: Реализовать в Этапе 7
-    console.log('Редактирование книги:', book);
-    handleCloseBookDetail();
+    setEditingBook(book);
+    setIsBookEditModalOpen(true);
+    // Не закрываем BookDetailModal, чтобы после редактирования пользователь мог продолжить просмотр
   };
 
   const handleTransferBook = (book) => {
@@ -333,6 +339,62 @@ const MainPage = () => {
     loadData(); // Обновляем категории с новыми счетчиками
   };
 
+  const handleCloseBookEditModal = () => {
+    setIsBookEditModalOpen(false);
+    setEditingBook(null);
+  };
+
+  const handleBookEditSave = async (updatedBook) => {
+    console.log('📝 MainPage: handleBookEditSave вызван');
+    console.log('📝 MainPage: updatedBook=', updatedBook);
+    console.log('📝 MainPage: updatedBook.id=', updatedBook?.id);
+    console.log('📝 MainPage: editingBook=', editingBook);
+    console.log('📝 MainPage: editingBook?.id=', editingBook?.id);
+    console.log('📝 MainPage: selectedBookId=', selectedBookId);
+    console.log('📝 MainPage: isBookDetailModalOpen=', isBookDetailModalOpen);
+    
+    // Сохраняем bookId ДО закрытия модального окна (editingBook будет сброшен в null)
+    const bookId = updatedBook?.id || editingBook?.id;
+    
+    if (!bookId) {
+      console.error('📝 MainPage: не удалось определить ID книги для обновления');
+      handleCloseBookEditModal();
+      return;
+    }
+    
+    console.log('📝 MainPage: используем bookId=', bookId);
+    
+    // Сохраняем также selectedBookId и isBookDetailModalOpen, так как они могут измениться
+    const currentSelectedBookId = selectedBookId;
+    const currentIsBookDetailModalOpen = isBookDetailModalOpen;
+    
+    // Перезагружаем список книг
+    loadBooks();
+    
+    // Закрываем модальное окно редактирования
+    handleCloseBookEditModal();
+    
+    // Если редактируемая книга открыта в BookDetailModal, перезагружаем её данные
+    if (currentSelectedBookId === bookId && currentIsBookDetailModalOpen) {
+      console.log('📝 MainPage: обновляем refreshTrigger для BookDetailModal');
+      console.log('📝 MainPage: currentSelectedBookId === bookId:', currentSelectedBookId === bookId);
+      console.log('📝 MainPage: currentIsBookDetailModalOpen:', currentIsBookDetailModalOpen);
+      
+      // Небольшая задержка перед обновлением, чтобы сервер успел обработать изменения и модальное окно закрылось
+      setTimeout(() => {
+        setBookDetailModalRefreshTrigger(prev => {
+          const newValue = prev + 1;
+          console.log('📝 MainPage: refreshTrigger изменен с', prev, 'на', newValue);
+          return newValue;
+        });
+      }, 400);
+    } else {
+      console.log('📝 MainPage: BookDetailModal не будет обновлен');
+      console.log('📝 MainPage: currentSelectedBookId =', currentSelectedBookId, 'bookId =', bookId);
+      console.log('📝 MainPage: currentIsBookDetailModalOpen =', currentIsBookDetailModalOpen);
+    }
+  };
+
   return (
     <div className="main-page">
       <Header 
@@ -401,6 +463,7 @@ const MainPage = () => {
         onEdit={handleEditBook}
         onTransfer={handleTransferBook}
         onDelete={handleDeleteBook}
+        refreshTrigger={bookDetailModalRefreshTrigger} // Триггер для перезагрузки данных
       />
 
       {/* Мастер создания книги */}
@@ -408,6 +471,14 @@ const MainPage = () => {
         isOpen={isBookCreateWizardOpen}
         onClose={handleCloseBookCreateWizard}
         onComplete={handleBookCreateComplete}
+      />
+
+      {/* Модальное окно редактирования книги */}
+      <BookEditModal
+        book={editingBook}
+        isOpen={isBookEditModalOpen}
+        onClose={handleCloseBookEditModal}
+        onSave={handleBookEditSave}
       />
     </div>
   );

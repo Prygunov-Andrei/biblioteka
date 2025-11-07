@@ -11,12 +11,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
-from ..models import Book, BookPage, BookImage, BookElectronic, Category, Hashtag, BookReview
+from ..models import Book, BookPage, BookImage, BookElectronic, Category, Hashtag, BookReview, BookReadingDate
 from ..serializers import (
     BookSerializer, BookListSerializer, BookDetailSerializer,
     BookCreateSerializer, BookUpdateSerializer,
     BookPageSerializer, BookImageSerializer,
-    BookElectronicSerializer, HashtagSerializer, LibrarySerializer
+    BookElectronicSerializer, HashtagSerializer, LibrarySerializer,
+    BookReadingDateSerializer
 )
 from ..permissions import IsOwnerOrReadOnly
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -778,6 +779,113 @@ class BookViewSet(viewsets.ModelViewSet):
             
             serializer = BookElectronicSerializer(electronic, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['delete'], url_path='electronic_versions/(?P<version_id>[^/.]+)')
+    def delete_electronic_version(self, request, pk=None, version_id=None):
+        """Удаление электронной версии книги"""
+        book = self.get_object()
+        
+        try:
+            electronic = book.electronic_versions.get(id=version_id)
+            electronic.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except BookElectronic.DoesNotExist:
+            return Response(
+                {'error': 'Электронная версия не найдена'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=True, methods=['get', 'post'])
+    def reading_dates(self, request, pk=None):
+        """Управление датами прочтения книги"""
+        book = self.get_object()
+        
+        if request.method == 'GET':
+            # Получить все даты прочтения
+            dates = book.reading_dates.all().order_by('-date')
+            serializer = BookReadingDateSerializer(dates, many=True)
+            return Response(serializer.data)
+        
+        elif request.method == 'POST':
+            # Добавить дату прочтения
+            date_str = request.data.get('date')
+            notes = request.data.get('notes', '')
+            
+            if not date_str:
+                return Response(
+                    {'error': 'Дата не указана'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                from datetime import datetime
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response(
+                    {'error': 'Неверный формат даты. Используйте формат YYYY-MM-DD'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Проверяем уникальность (одна дата прочтения на книгу)
+            if book.reading_dates.filter(date=date_obj).exists():
+                return Response(
+                    {'error': 'Дата прочтения с этой датой уже существует'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            reading_date = BookReadingDate.objects.create(
+                book=book,
+                date=date_obj,
+                notes=notes
+            )
+            
+            serializer = BookReadingDateSerializer(reading_date)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['delete'], url_path='reading_dates/(?P<date_id>[^/.]+)')
+    def delete_reading_date(self, request, pk=None, date_id=None):
+        """Удаление даты прочтения книги"""
+        book = self.get_object()
+        
+        try:
+            reading_date = book.reading_dates.get(id=date_id)
+            reading_date.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except BookReadingDate.DoesNotExist:
+            return Response(
+                {'error': 'Дата прочтения не найдена'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=True, methods=['delete'], url_path='images/(?P<image_id>[^/.]+)')
+    def delete_image(self, request, pk=None, image_id=None):
+        """Удаление изображения книги"""
+        book = self.get_object()
+        
+        try:
+            image = book.images.get(id=image_id)
+            image.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except BookImage.DoesNotExist:
+            return Response(
+                {'error': 'Изображение не найдено'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=True, methods=['delete'], url_path='pages/(?P<page_id>[^/.]+)')
+    def delete_page(self, request, pk=None, page_id=None):
+        """Удаление страницы книги"""
+        book = self.get_object()
+        
+        try:
+            page = book.pages_set.get(id=page_id)
+            page.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except BookPage.DoesNotExist:
+            return Response(
+                {'error': 'Страница не найдена'},
+                status=status.HTTP_404_NOT_FOUND
+            )
     
     @action(detail=True, methods=['get'])
     def pages(self, request, pk=None):

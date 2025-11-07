@@ -608,6 +608,12 @@ class BookUpdateSerializer(serializers.ModelSerializer):
         required=False,
         help_text='Список ID авторов (до 3-х)'
     )
+    language_name = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_null=True,
+        help_text='Название языка (например, "Русский"). Если язык не найден, будет создан новый.'
+    )
     
     class Meta:
         model = Book
@@ -616,7 +622,7 @@ class BookUpdateSerializer(serializers.ModelSerializer):
             'library', 'status',
             'publication_place', 'publisher',
             'year', 'year_approx', 'pages_info', 'circulation',
-            'language',
+            'language', 'language_name',
             'binding_type', 'binding_details', 'format',
             'price_rub', 'description',
             'condition', 'condition_details',
@@ -633,7 +639,19 @@ class BookUpdateSerializer(serializers.ModelSerializer):
         return value
     
     def update(self, instance, validated_data):
+        # Language уже импортирован в начале файла
         author_ids = validated_data.pop('author_ids', None)
+        language_name = validated_data.pop('language_name', None)
+        
+        # Обрабатываем language_name: ищем язык по имени или создаем новый
+        if language_name and not validated_data.get('language'):
+            language_name_clean = language_name.strip()
+            if language_name_clean:
+                language, created = Language.objects.get_or_create(
+                    name=language_name_clean,
+                    defaults={'code': language_name_clean.lower()[:10]}  # Используем первые 10 символов как код
+                )
+                validated_data['language'] = language
         
         # Обновляем поля книги
         for attr, value in validated_data.items():

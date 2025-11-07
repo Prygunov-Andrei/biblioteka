@@ -255,6 +255,49 @@ export const booksAPI = {
     const response = await apiClient.post('/books/', bookData);
     return response.data;
   },
+  update: async (bookId, bookData) => {
+    // Обновление книги через PATCH (частичное обновление)
+    const response = await apiClient.patch(`/books/${bookId}/`, bookData);
+    return response.data;
+  },
+  // Управление страницами
+  getPages: async (bookId) => {
+    const response = await apiClient.get(`/books/${bookId}/pages/`);
+    return response.data;
+  },
+  deletePage: async (bookId, pageId) => {
+    const response = await apiClient.delete(`/books/${bookId}/pages/${pageId}/`);
+    return response.data;
+  },
+  // Управление электронными версиями
+  deleteElectronicVersion: async (bookId, versionId) => {
+    const response = await apiClient.delete(`/books/${bookId}/electronic_versions/${versionId}/`);
+    return response.data;
+  },
+  addElectronicVersion: async (bookId, electronicData) => {
+    const response = await apiClient.post(`/books/${bookId}/electronic_versions/`, electronicData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+  // Управление датами прочтения
+  getReadingDates: async (bookId) => {
+    const response = await apiClient.get(`/books/${bookId}/reading_dates/`);
+    return response.data;
+  },
+  addReadingDate: async (bookId, date, notes = '') => {
+    const response = await apiClient.post(`/books/${bookId}/reading_dates/`, {
+      date: date, // Формат: YYYY-MM-DD
+      notes: notes,
+    });
+    return response.data;
+  },
+  deleteReadingDate: async (bookId, dateId) => {
+    const response = await apiClient.delete(`/books/${bookId}/reading_dates/${dateId}/`);
+    return response.data;
+  },
 };
 
 // API методы для авторов
