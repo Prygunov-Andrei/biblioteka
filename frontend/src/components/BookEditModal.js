@@ -36,6 +36,13 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
   const [electronicVersions, setElectronicVersions] = useState([]);
   const [loadingElectronicVersions, setLoadingElectronicVersions] = useState(false);
   const [confirmDeleteElectronicVersion, setConfirmDeleteElectronicVersion] = useState(null);
+  const [addingElectronicVersion, setAddingElectronicVersion] = useState(false);
+  const [newElectronicVersion, setNewElectronicVersion] = useState({
+    format: '',
+    url: '',
+    file: null
+  });
+  const electronicFileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -151,6 +158,15 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
         status: 'none',
         library: null,
       });
+      // Сбрасываем состояние электронных версий
+      setNewElectronicVersion({
+        format: '',
+        url: '',
+        file: null
+      });
+      if (electronicFileInputRef.current) {
+        electronicFileInputRef.current.value = '';
+      }
     }
   }, [isOpen, book]);
 
@@ -551,6 +567,51 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
   };
 
   // Обработчики для электронных версий
+  const handleAddElectronicVersion = async () => {
+    if (!newElectronicVersion.format) {
+      setError('Выберите формат электронной версии');
+      return;
+    }
+
+    if (!newElectronicVersion.url && !newElectronicVersion.file) {
+      setError('Укажите URL или загрузите файл');
+      return;
+    }
+
+    try {
+      setAddingElectronicVersion(true);
+      setError(null);
+
+      const formData = new FormData();
+      formData.append('format', newElectronicVersion.format);
+      if (newElectronicVersion.url) {
+        formData.append('url', newElectronicVersion.url);
+      }
+      if (newElectronicVersion.file) {
+        formData.append('file', newElectronicVersion.file);
+      }
+
+      const addedVersion = await booksAPI.addElectronicVersion(book.id, formData);
+      setElectronicVersions(prev => [...prev, addedVersion]);
+      
+      // Сбрасываем форму
+      setNewElectronicVersion({
+        format: '',
+        url: '',
+        file: null
+      });
+      if (electronicFileInputRef.current) {
+        electronicFileInputRef.current.value = '';
+      }
+    } catch (err) {
+      console.error('Ошибка добавления электронной версии:', err);
+      const errorMessage = err.response?.data?.error || err.response?.data?.detail || 'Не удалось добавить электронную версию';
+      setError(errorMessage);
+    } finally {
+      setAddingElectronicVersion(false);
+    }
+  };
+
   const handleDeleteElectronicVersion = async (versionId) => {
     try {
       await booksAPI.deleteElectronicVersion(book.id, versionId);
@@ -560,6 +621,13 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
     } catch (err) {
       console.error('Ошибка удаления электронной версии:', err);
       setError(err.response?.data?.error || 'Не удалось удалить электронную версию');
+    }
+  };
+
+  const handleElectronicFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewElectronicVersion(prev => ({ ...prev, file }));
     }
   };
 
@@ -1168,37 +1236,104 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
               </div>
 
               {/* Управление электронными версиями */}
-              {electronicVersions.length > 0 && (
-                <div className="form-group" style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e0e0e0' }}>
-                  <label>Электронные версии</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+              <div className="form-group" style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e0e0e0' }}>
+                <label>Электронные версии</label>
+                
+                {/* Форма добавления новой электронной версии */}
+                <div className="electronic-version-add-form">
+                  <div className="electronic-version-add-form-content">
+                    <div className="electronic-version-add-field">
+                      <label htmlFor="electronic_format" className="electronic-version-add-label">
+                        Формат *
+                      </label>
+                      <select
+                        id="electronic_format"
+                        className="electronic-version-add-select"
+                        value={newElectronicVersion.format}
+                        onChange={(e) => setNewElectronicVersion(prev => ({ ...prev, format: e.target.value }))}
+                        disabled={addingElectronicVersion}
+                      >
+                        <option value="">Выберите формат</option>
+                        <option value="pdf">PDF</option>
+                        <option value="epub">EPUB</option>
+                        <option value="mobi">MOBI</option>
+                        <option value="fb2">FB2</option>
+                        <option value="djvu">DJVU</option>
+                        <option value="txt">TXT</option>
+                        <option value="rtf">RTF</option>
+                        <option value="doc">DOC</option>
+                        <option value="docx">DOCX</option>
+                      </select>
+                    </div>
+
+                    <div className="electronic-version-add-field">
+                      <label htmlFor="electronic_url" className="electronic-version-add-label">
+                        URL (опционально)
+                      </label>
+                      <input
+                        type="url"
+                        id="electronic_url"
+                        className="electronic-version-add-input"
+                        value={newElectronicVersion.url}
+                        onChange={(e) => setNewElectronicVersion(prev => ({ ...prev, url: e.target.value }))}
+                        placeholder="https://example.com/book.pdf"
+                        disabled={addingElectronicVersion}
+                      />
+                    </div>
+
+                    <div className="electronic-version-add-field">
+                      <label htmlFor="electronic_file" className="electronic-version-add-label">
+                        Или загрузите файл (опционально)
+                      </label>
+                      <input
+                        type="file"
+                        id="electronic_file"
+                        className="electronic-version-add-input"
+                        ref={electronicFileInputRef}
+                        onChange={handleElectronicFileSelect}
+                        accept=".pdf,.epub,.mobi,.fb2,.djvu,.txt,.rtf,.doc,.docx"
+                        disabled={addingElectronicVersion}
+                      />
+                      {newElectronicVersion.file && (
+                        <div className="electronic-version-file-info">
+                          Выбран файл: {newElectronicVersion.file.name}
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="electronic-version-add-button"
+                      onClick={handleAddElectronicVersion}
+                      disabled={addingElectronicVersion || !newElectronicVersion.format || (!newElectronicVersion.url && !newElectronicVersion.file)}
+                    >
+                      {addingElectronicVersion ? 'Добавление...' : 'Добавить электронную версию'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Список существующих электронных версий */}
+                {electronicVersions.length > 0 && (
+                  <div className="electronic-version-list">
                     {electronicVersions.map((version) => (
                       <div
                         key={version.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '12px',
-                          background: '#f5f5f5',
-                          borderRadius: '6px',
-                          border: '1px solid #e0e0e0'
-                        }}
+                        className="electronic-version-item"
                       >
-                        <div>
-                          <div style={{ fontWeight: '500' }}>
+                        <div className="electronic-version-item-info">
+                          <div className="electronic-version-item-format">
                             {version.format?.toUpperCase() || 'Неизвестный формат'}
                           </div>
                           {version.url && (
-                            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                              <a href={version.url} target="_blank" rel="noopener noreferrer" style={{ color: '#1976d2' }}>
+                            <div className="electronic-version-item-link">
+                              <a href={version.url} target="_blank" rel="noopener noreferrer">
                                 {version.url}
                               </a>
                             </div>
                           )}
                           {version.file_url && (
-                            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                              <a href={version.file_url} target="_blank" rel="noopener noreferrer" style={{ color: '#1976d2' }}>
+                            <div className="electronic-version-item-link">
+                              <a href={version.file_url} target="_blank" rel="noopener noreferrer">
                                 Скачать файл
                               </a>
                             </div>
@@ -1206,24 +1341,16 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
                         </div>
                         <button
                           type="button"
+                          className="electronic-version-delete-button"
                           onClick={() => setConfirmDeleteElectronicVersion(version.id)}
-                          style={{
-                            background: '#ff5252',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '6px 12px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
                         >
                           Удалить
                         </button>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {error && (
                 <div className="book-edit-form-error" style={{

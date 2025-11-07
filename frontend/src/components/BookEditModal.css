@@ -301,3 +301,178 @@
   }
 }
 
+/* Стили для блока добавления электронной версии */
+.electronic-version-add-form {
+  margin-top: 12px;
+  padding: 16px;
+  background: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  margin-bottom: 16px;
+}
+
+.dark-theme .electronic-version-add-form {
+  background: #333;
+  border-color: #555;
+}
+
+.electronic-version-add-form-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.electronic-version-add-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.electronic-version-add-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.dark-theme .electronic-version-add-label {
+  color: #ddd;
+}
+
+.electronic-version-add-select,
+.electronic-version-add-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+  color: #333;
+}
+
+.dark-theme .electronic-version-add-select,
+.dark-theme .electronic-version-add-input {
+  background: #2a2a2a;
+  border-color: #555;
+  color: #fff;
+}
+
+.electronic-version-add-select:focus,
+.electronic-version-add-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.electronic-version-add-select:disabled,
+.electronic-version-add-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.electronic-version-file-info {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #666;
+}
+
+.dark-theme .electronic-version-file-info {
+  color: #aaa;
+}
+
+.electronic-version-add-button {
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  align-self: flex-start;
+  transition: background-color 0.2s;
+}
+
+.electronic-version-add-button:hover:not(:disabled) {
+  background: #1565c0;
+}
+
+.electronic-version-add-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.dark-theme .electronic-version-add-button:disabled {
+  background: #555;
+  color: #888;
+}
+
+.electronic-version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.electronic-version-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.dark-theme .electronic-version-item {
+  background: #333;
+  border-color: #555;
+}
+
+.electronic-version-item-info {
+  flex: 1;
+}
+
+.electronic-version-item-format {
+  font-weight: 500;
+  color: #333;
+}
+
+.dark-theme .electronic-version-item-format {
+  color: #fff;
+}
+
+.electronic-version-item-link {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.dark-theme .electronic-version-item-link {
+  color: #aaa;
+}
+
+.electronic-version-item-link a {
+  color: #1976d2;
+  text-decoration: none;
+}
+
+.electronic-version-item-link a:hover {
+  text-decoration: underline;
+}
+
+.electronic-version-delete-button {
+  background: #ff5252;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.electronic-version-delete-button:hover {
+  background: #d32f2f;
+}
+
