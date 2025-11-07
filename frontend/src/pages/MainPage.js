@@ -190,6 +190,9 @@ const MainPage = () => {
     // Обновляем список книг
     loadBooks();
     
+    // Перезагружаем статистику для обновления счетчиков фильтров
+    loadStats();
+    
     // Если переданная книга открыта в BookDetailModal, обновляем её данные
     if (selectedBookId === updatedBook.id && isBookDetailModalOpen) {
       setBookDetailModalRefreshTrigger(prev => prev + 1);
@@ -224,6 +227,9 @@ const MainPage = () => {
       // Обновляем список книг
       loadBooks();
       loadData(); // Обновляем категории и хэштеги
+      
+      // Перезагружаем статистику для обновления счетчиков фильтров
+      loadStats();
       
       // Сбрасываем состояние
       setBookToDelete(null);
@@ -413,6 +419,9 @@ const MainPage = () => {
     // Перезагружаем список книг и категории (для обновления счетчиков) после создания
     loadBooks();
     loadData(); // Обновляем категории с новыми счетчиками
+    
+    // Перезагружаем статистику для обновления счетчиков фильтров
+    loadStats();
   };
 
   const handleCloseBookEditModal = () => {
@@ -446,6 +455,9 @@ const MainPage = () => {
     
     // Перезагружаем список книг
     loadBooks();
+    
+    // Перезагружаем статистику для обновления счетчиков фильтров
+    loadStats();
     
     // Закрываем модальное окно редактирования
     handleCloseBookEditModal();

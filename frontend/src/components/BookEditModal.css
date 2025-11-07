@@ -476,3 +476,88 @@
   background: #d32f2f;
 }
 
+/* Стили для дат прочтения */
+.reading-date-loading,
+.reading-date-empty {
+  color: #666;
+  font-style: italic;
+  padding: 8px 0;
+  transition: color 0.3s;
+}
+
+.dark-theme .reading-date-loading,
+.dark-theme .reading-date-empty {
+  color: #999;
+}
+
+.reading-date-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.reading-date-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.dark-theme .reading-date-item {
+  background: #3a3a3a;
+  border-color: #555;
+}
+
+.reading-date-item-info {
+  flex: 1;
+}
+
+.reading-date-item-date {
+  font-weight: 500;
+  color: #333;
+  transition: color 0.3s;
+}
+
+.dark-theme .reading-date-item-date {
+  color: #eee;
+}
+
+.reading-date-item-notes {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+  transition: color 0.3s;
+}
+
+.dark-theme .reading-date-item-notes {
+  color: #aaa;
+}
+
+.reading-date-delete-button {
+  background: #ff5252;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.3s;
+}
+
+.reading-date-delete-button:hover {
+  background: #d32f2f;
+}
+
+.dark-theme .reading-date-delete-button {
+  background: #d32f2f;
+}
+
+.dark-theme .reading-date-delete-button:hover {
+  background: #c62828;
+}
+

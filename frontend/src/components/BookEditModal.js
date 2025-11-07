@@ -1100,42 +1100,26 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
                     />
                   </div>
                   {loadingReadingDates ? (
-                    <div style={{ color: '#666', fontStyle: 'italic' }}>Загрузка дат прочтения...</div>
+                    <div className="reading-date-loading">Загрузка дат прочтения...</div>
                   ) : readingDates.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="reading-date-list">
                       {readingDates.map((readingDate) => (
                         <div
                           key={readingDate.id}
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '8px 12px',
-                            background: '#f5f5f5',
-                            borderRadius: '6px',
-                            border: '1px solid #e0e0e0'
-                          }}
+                          className="reading-date-item"
                         >
-                          <div>
-                            <div style={{ fontWeight: '500' }}>{formatDate(readingDate.date)}</div>
+                          <div className="reading-date-item-info">
+                            <div className="reading-date-item-date">{formatDate(readingDate.date)}</div>
                             {readingDate.notes && (
-                              <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                              <div className="reading-date-item-notes">
                                 {readingDate.notes}
                               </div>
                             )}
                           </div>
                           <button
                             type="button"
+                            className="reading-date-delete-button"
                             onClick={() => setConfirmDeleteReadingDate(readingDate.id)}
-                            style={{
-                              background: '#ff5252',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '4px 12px',
-                              cursor: 'pointer',
-                              fontSize: '12px'
-                            }}
                           >
                             Удалить
                           </button>
@@ -1143,7 +1127,7 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
                       ))}
                     </div>
                   ) : (
-                    <div style={{ color: '#666', fontStyle: 'italic' }}>Нет дат прочтения</div>
+                    <div className="reading-date-empty">Нет дат прочтения</div>
                   )}
                 </div>
               )}
