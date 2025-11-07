@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { booksAPI, reviewsAPI } from '../services/api';
+import { booksAPI, reviewsAPI, userAPI } from '../services/api';
 import ReviewItem from './ReviewItem';
 import StarRating from './StarRating';
 import EditReviewModal from './EditReviewModal';
@@ -45,19 +45,30 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
 
   const loadCurrentUser = async () => {
     try {
-      // Пытаемся получить ID текущего пользователя из токена или через API
+      // Пытаемся получить ID текущего пользователя из токена
       const token = localStorage.getItem('access_token');
       if (token) {
-        // Простой способ - декодировать JWT токен (только для получения user_id)
         try {
+          // Декодируем JWT токен для получения user_id
           const payload = JSON.parse(atob(token.split('.')[1]));
           if (payload.user_id) {
             setCurrentUserId(payload.user_id);
+            return;
           }
         } catch (e) {
-          // Если не удалось декодировать, пробуем через API
-          // Можно добавить endpoint для получения текущего пользователя
+          console.warn('Не удалось декодировать токен:', e);
         }
+      }
+      // Если не удалось получить из токена, пробуем через API профиля
+      try {
+        const profile = await userAPI.getProfile();
+        if (profile?.user?.id) {
+          setCurrentUserId(profile.user.id);
+        } else if (profile?.id) {
+          setCurrentUserId(profile.id);
+        }
+      } catch (apiErr) {
+        console.warn('Не удалось получить профиль через API:', apiErr);
       }
     } catch (err) {
       console.error('Ошибка получения текущего пользователя:', err);
@@ -763,15 +774,38 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
 
         {!loading && !error && book && (
           <div className="book-detail-modal-footer">
-            <button className="book-detail-button book-detail-button-edit" onClick={handleEdit}>
-              Редактировать
-            </button>
-            <button className="book-detail-button book-detail-button-transfer" onClick={handleTransfer}>
-              Передать
-            </button>
-            <button className="book-detail-button book-detail-button-delete" onClick={handleDelete}>
-              Удалить
-            </button>
+            {/* Показываем кнопки редактирования, передачи и удаления только владельцу книги */}
+            {(() => {
+              // Определяем ID владельца книги
+              // owner может быть ID (число) или объектом с полем id
+              let bookOwnerId = null;
+              if (book.owner_id) {
+                bookOwnerId = book.owner_id;
+              } else if (book.owner) {
+                if (typeof book.owner === 'object' && book.owner !== null) {
+                  bookOwnerId = book.owner.id || book.owner.pk;
+                } else if (typeof book.owner === 'number' || typeof book.owner === 'string') {
+                  bookOwnerId = Number(book.owner);
+                }
+              }
+              
+              // Проверяем, является ли текущий пользователь владельцем
+              const isOwner = currentUserId && bookOwnerId && Number(currentUserId) === Number(bookOwnerId);
+              
+              return isOwner ? (
+                <>
+                  <button className="book-detail-button book-detail-button-edit" onClick={handleEdit}>
+                    Редактировать
+                  </button>
+                  <button className="book-detail-button book-detail-button-transfer" onClick={handleTransfer}>
+                    Передать
+                  </button>
+                  <button className="book-detail-button book-detail-button-delete" onClick={handleDelete}>
+                    Удалить
+                  </button>
+                </>
+              ) : null;
+            })()}
             <button className="book-detail-button book-detail-button-close" onClick={handleClose}>
               Закрыть
             </button>
