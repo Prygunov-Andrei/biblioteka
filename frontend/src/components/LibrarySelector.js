@@ -45,7 +45,8 @@ const LibrarySelector = ({ selectedLibraries, onLibrariesChange }) => {
       setMyLibraries(myLibrariesList);
       
       // Если библиотеки еще не выбраны, выбираем все по умолчанию
-      if (selectedLibraries.length === 0 && allLibraries.length > 0) {
+      // Только если onLibrariesChange передан
+      if (onLibrariesChange && selectedLibraries.length === 0 && allLibraries.length > 0) {
         onLibrariesChange(allLibraries.map(lib => lib.id));
       }
     } catch (error) {
@@ -60,6 +61,7 @@ const LibrarySelector = ({ selectedLibraries, onLibrariesChange }) => {
   };
 
   const handleToggleLibrary = (libraryId) => {
+    if (!onLibrariesChange) return;
     const newSelected = selectedLibraries.includes(libraryId)
       ? selectedLibraries.filter(id => id !== libraryId)
       : [...selectedLibraries, libraryId];
@@ -67,6 +69,7 @@ const LibrarySelector = ({ selectedLibraries, onLibrariesChange }) => {
   };
 
   const handleSelectAll = () => {
+    if (!onLibrariesChange) return;
     if (selectedLibraries.length === libraries.length) {
       // Если все выбраны, снимаем выбор
       onLibrariesChange([]);
@@ -78,6 +81,12 @@ const LibrarySelector = ({ selectedLibraries, onLibrariesChange }) => {
 
   const allSelected = libraries.length > 0 && selectedLibraries.length === libraries.length;
   const someSelected = selectedLibraries.length > 0 && selectedLibraries.length < libraries.length;
+
+  // Если onLibrariesChange не передан, компонент работает в режиме только просмотра
+  // В этом случае не показываем селектор библиотек
+  if (!onLibrariesChange) {
+    return null;
+  }
 
   return (
     <div className="library-selector" ref={dropdownRef}>
