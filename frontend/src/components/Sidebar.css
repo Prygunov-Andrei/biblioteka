@@ -94,6 +94,12 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.category-expand-icon-placeholder {
+  /* Пустой элемент-заглушка для выравнивания категорий без подкатегорий */
+  visibility: hidden;
 }
 
 .category-name {

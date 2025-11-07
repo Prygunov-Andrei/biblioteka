@@ -63,10 +63,12 @@ const Sidebar = ({ categories, hashtags, selectedCategory, selectedHashtag, onCa
                     }}
                   >
                     <div className="category-content">
-                      {hasSubcategories && (
+                      {hasSubcategories ? (
                         <span className="category-expand-icon">
                           {isExpanded ? '▼' : '▶'}
                         </span>
+                      ) : (
+                        <span className="category-expand-icon category-expand-icon-placeholder"></span>
                       )}
                       <span className="category-name">{category.name}</span>
                     </div>
