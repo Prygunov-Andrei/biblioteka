@@ -96,7 +96,7 @@ const MainPage = () => {
 
   useEffect(() => {
     loadHashtags();
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedLibraries]);
 
   useEffect(() => {
     // Сбрасываем страницу на 1 при изменении фильтров
@@ -128,8 +128,14 @@ const MainPage = () => {
 
   const loadHashtags = async () => {
     try {
+      // Если не выбрана ни одна библиотека, не загружаем хэштеги
+      if (selectedLibraries.length === 0) {
+        setHashtags([]);
+        return;
+      }
+      
       const categoryId = selectedCategory ? selectedCategory.id : null;
-      const data = await hashtagsAPI.getByCategory(categoryId);
+      const data = await hashtagsAPI.getByCategory(categoryId, selectedLibraries);
       setHashtags(data.hashtags || []);
     } catch (error) {
       console.error('Ошибка загрузки хэштегов:', error);

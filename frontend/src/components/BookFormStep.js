@@ -173,9 +173,21 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
                   console.log(`BookFormStep: найдено авторов для "${nameToSearch}":`, authors.length, authors);
                   
                   if (authors.length > 0) {
+                    // Функция для проверки, содержит ли имя автора все слова из запроса (независимо от порядка)
+                    const containsAllWords = (authorFullName, searchName) => {
+                      const authorWords = authorFullName.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+                      const searchWords = searchName.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+                      // Проверяем, что каждое слово из запроса содержится в имени автора (или наоборот для коротких слов)
+                      return searchWords.every(word => 
+                        authorWords.some(authorWord => 
+                          authorWord.includes(word) || word.includes(authorWord) || authorWord === word
+                        )
+                      );
+                    };
+                    
                     // Сначала ищем точное совпадение (без учета регистра)
                     const exactMatch = authors.find(a => 
-                      a.full_name.toLowerCase().trim() === nameToSearch.toLowerCase().trim()
+                      a.full_name && a.full_name.toLowerCase().trim() === nameToSearch.toLowerCase().trim()
                     );
                     
                     if (exactMatch) {
@@ -186,23 +198,54 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
                         foundAuthors.push(exactMatch);
                       }
                     } else {
-                      // Если точного совпадения нет, ищем автора, который начинается с запроса
-                      const startsWithMatch = authors.find(a => 
-                        a.full_name.toLowerCase().trim().startsWith(nameToSearch.toLowerCase().trim())
+                      // Если точного совпадения нет, ищем автора, который содержит все слова из запроса
+                      const containsAllWordsMatch = authors.find(a => 
+                        a.full_name && containsAllWords(a.full_name, nameToSearch)
                       );
                       
-                      if (startsWithMatch) {
-                        console.log(`BookFormStep: найдено совпадение по началу для "${nameToSearch}":`, startsWithMatch);
+                      if (containsAllWordsMatch) {
+                        console.log(`BookFormStep: найдено совпадение по всем словам для "${nameToSearch}":`, containsAllWordsMatch.full_name);
                         // Проверяем, что этого автора еще нет в списке
-                        if (!foundAuthors.some(a => a.id === startsWithMatch.id)) {
-                          foundAuthors.push(startsWithMatch);
+                        if (!foundAuthors.some(a => a.id === containsAllWordsMatch.id)) {
+                          foundAuthors.push(containsAllWordsMatch);
                         }
                       } else {
-                        // Если нет точного совпадения и совпадения по началу, НЕ добавляем автора из базы
-                        // Это предотвращает добавление неправильных авторов из-за частичных совпадений
-                        // (например, "М. Кожаринов" при поиске "Е. М. Фатеева" из-за совпадения "М.")
-                        console.log(`BookFormStep: для "${nameToSearch}" нет точного совпадения или совпадения по началу. Найдено ${authors.length} авторов, но они не подходят. Автор будет создан как временный.`);
-                        console.log(`BookFormStep: найденные авторы (не подходят):`, authors.map(a => a.full_name));
+                        // Если нет совпадения по всем словам, ищем автора, который начинается с запроса
+                        const startsWithMatch = authors.find(a => 
+                          a.full_name && a.full_name.toLowerCase().trim().startsWith(nameToSearch.toLowerCase().trim())
+                        );
+                        
+                        if (startsWithMatch) {
+                          console.log(`BookFormStep: найдено совпадение по началу для "${nameToSearch}":`, startsWithMatch);
+                          // Проверяем, что этого автора еще нет в списке
+                          if (!foundAuthors.some(a => a.id === startsWithMatch.id)) {
+                            foundAuthors.push(startsWithMatch);
+                          }
+                        } else {
+                          // Если нет совпадений, берем первого из списка (бэкенд уже отсортировал по релевантности)
+                          // Но только если он содержит хотя бы одно слово из запроса
+                          const firstRelevant = authors.find(a => {
+                            if (!a.full_name) return false;
+                            const authorWords = a.full_name.toLowerCase().split(/\s+/);
+                            const searchWords = nameToSearch.toLowerCase().split(/\s+/);
+                            return searchWords.some(word => 
+                              authorWords.some(authorWord => 
+                                authorWord.includes(word) || word.includes(authorWord) || authorWord === word
+                              )
+                            );
+                          });
+                          
+                          if (firstRelevant) {
+                            console.log(`BookFormStep: найдено релевантное совпадение для "${nameToSearch}":`, firstRelevant.full_name);
+                            if (!foundAuthors.some(a => a.id === firstRelevant.id)) {
+                              foundAuthors.push(firstRelevant);
+                            }
+                          } else {
+                            // Если нет подходящих авторов, создаем временного
+                            console.log(`BookFormStep: для "${nameToSearch}" не найдено подходящих авторов. Автор будет создан как временный.`);
+                            console.log(`BookFormStep: найденные авторы (не подходят):`, authors.map(a => a.full_name));
+                          }
+                        }
                       }
                     }
                   } else {

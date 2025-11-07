@@ -177,9 +177,18 @@ export const hashtagsAPI = {
     const response = await apiClient.get('/hashtags/', { params });
     return response.data;
   },
-  getByCategory: async (categoryId = null) => {
-    const params = categoryId ? { category_id: categoryId } : {};
-    const response = await apiClient.get('/hashtags/by_category/', { params });
+  getByCategory: async (categoryId = null, libraryIds = []) => {
+    const params = new URLSearchParams();
+    if (categoryId) {
+      params.append('category_id', categoryId);
+    }
+    if (libraryIds && libraryIds.length > 0) {
+      // Передаем библиотеки как массив (повторяющийся параметр)
+      libraryIds.forEach(libId => {
+        params.append('libraries', libId);
+      });
+    }
+    const response = await apiClient.get(`/hashtags/by_category/?${params.toString()}`);
     return response.data;
   },
 };

@@ -44,24 +44,77 @@ class HashtagViewSet(viewsets.ReadOnlyModelViewSet):
         
         Query params:
             category_id - ID категории (если не указан, используются все категории)
+            libraries - ID библиотек (можно передать несколько через запятую или массивом)
         """
         category_id = request.query_params.get('category_id')
         
+        # Получаем список библиотек из параметров запроса
+        libraries_param = request.query_params.getlist('libraries')
+        if not libraries_param:
+            # Пробуем получить как строку с запятыми
+            libraries_str = request.query_params.get('libraries')
+            if libraries_str:
+                libraries_param = [lib.strip() for lib in libraries_str.split(',') if lib.strip()]
+        
+        import sys
+        print(f"🔵 by_category: libraries_param = {libraries_param}", file=sys.stderr)
+        sys.stderr.flush()
+        
         # Базовый queryset для книг
         books_queryset = Book.objects.all()
+        
+        # ВАЖНО: Фильтруем по библиотекам ТОЛЬКО если они указаны
+        # Если библиотеки не указаны, возвращаем пустой список (не все хэштеги!)
+        if libraries_param:
+            try:
+                library_ids = [int(lib_id) for lib_id in libraries_param if lib_id]
+                if library_ids:
+                    print(f"🔵 by_category: фильтруем по библиотекам: {library_ids}", file=sys.stderr)
+                    sys.stderr.flush()
+                    books_queryset = books_queryset.filter(library_id__in=library_ids)
+                else:
+                    # Если библиотеки указаны, но не валидны, возвращаем пустой список
+                    print(f"🔵 by_category: библиотеки не валидны, возвращаем пустой список", file=sys.stderr)
+                    sys.stderr.flush()
+                    return Response({
+                        'hashtags': [],
+                        'max_count': 1,
+                        'min_count': 1,
+                    })
+            except (ValueError, TypeError) as e:
+                # Если не удалось преобразовать в числа, возвращаем пустой список
+                print(f"🔵 by_category: ошибка преобразования библиотек: {e}", file=sys.stderr)
+                sys.stderr.flush()
+                return Response({
+                    'hashtags': [],
+                    'max_count': 1,
+                    'min_count': 1,
+                })
+        else:
+            # Если библиотеки НЕ указаны, возвращаем пустой список
+            # (не показываем все хэштеги, если библиотеки не выбраны)
+            print(f"🔵 by_category: библиотеки не указаны, возвращаем пустой список", file=sys.stderr)
+            sys.stderr.flush()
+            return Response({
+                'hashtags': [],
+                'max_count': 1,
+                'min_count': 1,
+            })
         
         if category_id:
             try:
                 # Используем утилиту для получения queryset категории
                 from ..utils import get_category_queryset
-                books_queryset = get_category_queryset(category_id, include_subcategories=True)
+                category_queryset = get_category_queryset(category_id, include_subcategories=True)
+                # Применяем фильтр категории к уже отфильтрованному по библиотекам queryset
+                books_queryset = books_queryset.filter(id__in=category_queryset.values_list('id', flat=True))
             except Category.DoesNotExist:
                 return Response(
                     {'error': 'Категория не найдена'},
                     status=status.HTTP_404_NOT_FOUND
                 )
         
-        # Получаем хэштеги с подсчетом частоты для книг в категории
+        # Получаем хэштеги с подсчетом частоты для книг в категории и библиотеках
         hashtags = Hashtag.objects.filter(
             books__in=books_queryset
         ).annotate(
