@@ -8,6 +8,7 @@ import BookDetailModal from '../components/BookDetailModal';
 import BookCreateWizard from '../components/BookCreateWizard';
 import BookEditModal from '../components/BookEditModal';
 import BookTransferModal from '../components/BookTransferModal';
+import ConfirmModal from '../components/ConfirmModal';
 import { authAPI, categoriesAPI, booksAPI, hashtagsAPI } from '../services/api';
 import './MainPage.css';
 
@@ -87,6 +88,11 @@ const MainPage = () => {
   // Состояние для модального окна передачи книги
   const [transferringBook, setTransferringBook] = useState(null);
   const [isBookTransferModalOpen, setIsBookTransferModalOpen] = useState(false);
+
+  // Состояние для подтверждения удаления книги
+  const [bookToDelete, setBookToDelete] = useState(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deletingBook, setDeletingBook] = useState(false);
 
   useEffect(() => {
     loadHashtags();
@@ -188,9 +194,50 @@ const MainPage = () => {
   };
 
   const handleDeleteBook = (book) => {
-    // TODO: Реализовать в Этапе 9
-    console.log('Удаление книги:', book);
-    handleCloseBookDetail();
+    setBookToDelete(book);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteBook = async () => {
+    if (!bookToDelete) return;
+
+    try {
+      setDeletingBook(true);
+      await booksAPI.delete(bookToDelete.id);
+      
+      // Закрываем все модальные окна
+      setIsDeleteConfirmOpen(false);
+      handleCloseBookDetail();
+      if (isBookEditModalOpen) {
+        handleCloseBookEditModal();
+      }
+      if (isBookTransferModalOpen) {
+        handleCloseBookTransferModal();
+      }
+      
+      // Обновляем список книг
+      loadBooks();
+      loadData(); // Обновляем категории и хэштеги
+      
+      // Сбрасываем состояние
+      setBookToDelete(null);
+    } catch (err) {
+      console.error('Ошибка удаления книги:', err);
+      const errorMessage = err.response?.data?.error || err.response?.data?.detail || 'Не удалось удалить книгу';
+      // Показываем ошибку через ConfirmModal
+      setBookToDelete({
+        ...bookToDelete,
+        error: true,
+        errorMessage: errorMessage
+      });
+    } finally {
+      setDeletingBook(false);
+    }
+  };
+
+  const handleCancelDeleteBook = () => {
+    setIsDeleteConfirmOpen(false);
+    setBookToDelete(null);
   };
 
   const loadStats = async () => {
@@ -511,6 +558,24 @@ const MainPage = () => {
         onClose={handleCloseBookTransferModal}
         onTransfer={handleBookTransferred}
       />
+
+      {/* Модальное окно подтверждения удаления книги */}
+      {bookToDelete && (
+        <ConfirmModal
+          isOpen={isDeleteConfirmOpen}
+          title={bookToDelete.error ? 'Ошибка' : 'Удалить книгу?'}
+          message={
+            bookToDelete.error
+              ? bookToDelete.errorMessage || 'Не удалось удалить книгу'
+              : `Вы уверены, что хотите удалить книгу "${bookToDelete.title}"${bookToDelete.authors && bookToDelete.authors.length > 0 ? ` (${bookToDelete.authors.map(a => a.full_name).join(', ')})` : ''}? Это действие нельзя отменить.`
+          }
+          confirmText={bookToDelete.error ? 'ОК' : 'Удалить'}
+          cancelText={bookToDelete.error ? null : 'Отмена'}
+          danger={!bookToDelete.error}
+          onConfirm={bookToDelete.error ? handleCancelDeleteBook : handleConfirmDeleteBook}
+          onCancel={bookToDelete.error ? handleCancelDeleteBook : handleCancelDeleteBook}
+        />
+      )}
     </div>
   );
 };

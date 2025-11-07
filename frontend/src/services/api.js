@@ -260,6 +260,10 @@ export const booksAPI = {
     const response = await apiClient.patch(`/books/${bookId}/`, bookData);
     return response.data;
   },
+  delete: async (bookId) => {
+    const response = await apiClient.delete(`/books/${bookId}/`);
+    return response.data;
+  },
   // Управление страницами
   getPages: async (bookId) => {
     const response = await apiClient.get(`/books/${bookId}/pages/`);
