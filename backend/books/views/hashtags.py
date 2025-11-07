@@ -56,10 +56,6 @@ class HashtagViewSet(viewsets.ReadOnlyModelViewSet):
             if libraries_str:
                 libraries_param = [lib.strip() for lib in libraries_str.split(',') if lib.strip()]
         
-        import sys
-        print(f"🔵 by_category: libraries_param = {libraries_param}", file=sys.stderr)
-        sys.stderr.flush()
-        
         # Базовый queryset для книг
         books_queryset = Book.objects.all()
         
@@ -69,22 +65,16 @@ class HashtagViewSet(viewsets.ReadOnlyModelViewSet):
             try:
                 library_ids = [int(lib_id) for lib_id in libraries_param if lib_id]
                 if library_ids:
-                    print(f"🔵 by_category: фильтруем по библиотекам: {library_ids}", file=sys.stderr)
-                    sys.stderr.flush()
                     books_queryset = books_queryset.filter(library_id__in=library_ids)
                 else:
                     # Если библиотеки указаны, но не валидны, возвращаем пустой список
-                    print(f"🔵 by_category: библиотеки не валидны, возвращаем пустой список", file=sys.stderr)
-                    sys.stderr.flush()
                     return Response({
                         'hashtags': [],
                         'max_count': 1,
                         'min_count': 1,
                     })
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 # Если не удалось преобразовать в числа, возвращаем пустой список
-                print(f"🔵 by_category: ошибка преобразования библиотек: {e}", file=sys.stderr)
-                sys.stderr.flush()
                 return Response({
                     'hashtags': [],
                     'max_count': 1,
@@ -93,8 +83,6 @@ class HashtagViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             # Если библиотеки НЕ указаны, возвращаем пустой список
             # (не показываем все хэштеги, если библиотеки не выбраны)
-            print(f"🔵 by_category: библиотеки не указаны, возвращаем пустой список", file=sys.stderr)
-            sys.stderr.flush()
             return Response({
                 'hashtags': [],
                 'max_count': 1,
