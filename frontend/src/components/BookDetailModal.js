@@ -92,6 +92,25 @@ const BookDetailModal = ({ bookId, isOpen, onClose, onEdit, onTransfer, onDelete
         });
       }
       setBook(data);
+      
+      // Устанавливаем начальную страницу на основе cover_page
+      if (data.pages && data.pages.length > 0) {
+        if (data.cover_page) {
+          // Находим индекс страницы, которая является обложкой
+          const coverPageId = typeof data.cover_page === 'object' ? data.cover_page.id : data.cover_page;
+          const coverPageIndex = data.pages.findIndex(page => page.id === coverPageId);
+          if (coverPageIndex !== -1) {
+            console.log('📄 Установлена обложка (cover_page):', coverPageId, 'индекс:', coverPageIndex);
+            setSelectedPageIndex(coverPageIndex);
+          } else {
+            console.log('📄 Обложка не найдена в списке страниц, используем первую страницу');
+            setSelectedPageIndex(0);
+          }
+        } else {
+          console.log('📄 Обложка не назначена, используем первую страницу');
+          setSelectedPageIndex(0);
+        }
+      }
     } catch (err) {
       console.error('Ошибка загрузки деталей книги:', err);
       setError('Не удалось загрузить информацию о книге');

@@ -30,6 +30,7 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
   const [loadingPages, setLoadingPages] = useState(false);
   const [uploadingPages, setUploadingPages] = useState(false);
   const [confirmDeletePage, setConfirmDeletePage] = useState(null);
+  const [coverPageId, setCoverPageId] = useState(null);
   const fileInputRef = useRef(null);
   
   // Состояние для электронных версий
@@ -263,6 +264,16 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
       setLoadingPages(false);
     }
     
+    // Загружаем текущую обложку
+    try {
+      const bookData = await booksAPI.getById(bookId);
+      if (bookData.cover_page) {
+        setCoverPageId(typeof bookData.cover_page === 'object' ? bookData.cover_page.id : bookData.cover_page);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки обложки:', err);
+    }
+    
     // Загружаем электронные версии
     try {
       setLoadingElectronicVersions(true);
@@ -326,6 +337,7 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
         description: formData.description || null,
         status: formData.status || 'none',
         library: formData.library || null,
+        cover_page: coverPageId || null,
       };
 
       // Добавляем language_name только если он не пустой
@@ -354,6 +366,13 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
       await new Promise(resolve => setTimeout(resolve, 100));
       const refreshedBookData = await booksAPI.getById(book.id);
       console.log('🔄 BookEditModal: перезагружены данные книги после сохранения:', refreshedBookData);
+      
+      // Обновляем обложку после сохранения
+      if (refreshedBookData.cover_page) {
+        setCoverPageId(typeof refreshedBookData.cover_page === 'object' ? refreshedBookData.cover_page.id : refreshedBookData.cover_page);
+      } else {
+        setCoverPageId(null);
+      }
       const authors = refreshedBookData.authors || [];
       const authorsList = authors.map(author => ({
         id: author.id,
@@ -545,6 +564,11 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
       const pages = await booksAPI.getPages(book.id);
       setBookPages(pages || []);
       
+      // Если обложка была удалена, сбрасываем её
+      if (coverPageId && !pages.find(p => p.id === coverPageId)) {
+        setCoverPageId(null);
+      }
+      
       setError(null);
     } catch (err) {
       console.error('Ошибка загрузки страниц:', err);
@@ -558,6 +582,10 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
     try {
       await booksAPI.deletePage(book.id, pageId);
       setBookPages(prev => prev.filter(p => p.id !== pageId));
+      // Если удаленная страница была обложкой, сбрасываем её
+      if (coverPageId === pageId) {
+        setCoverPageId(null);
+      }
       setConfirmDeletePage(null);
       setError(null);
     } catch (err) {
@@ -1123,7 +1151,14 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
               {/* Управление страницами */}
               <div className="form-group" style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e0e0e0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <label style={{ margin: 0 }}>Страницы книги</label>
+                  <div>
+                    <label style={{ margin: 0 }}>Страницы книги</label>
+                    {bookPages.length > 0 && (
+                      <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                        Кликните на страницу, чтобы сделать её обложкой
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <input
                       ref={fileInputRef}
@@ -1161,64 +1196,96 @@ const BookEditModal = ({ book, isOpen, onClose, onSave }) => {
                     gap: '12px',
                     marginTop: '12px'
                   }}>
-                    {bookPages.map((page) => (
-                      <div
-                        key={page.id}
-                        style={{
-                          position: 'relative',
-                          border: '1px solid #e0e0e0',
-                          borderRadius: '6px',
-                          overflow: 'hidden',
-                          background: '#f5f5f5'
-                        }}
-                      >
-                        <img
-                          src={page.processed_url || page.original_url}
-                          alt={`Страница ${page.page_number}`}
+                    {bookPages.map((page) => {
+                      const isCover = coverPageId === page.id;
+                      return (
+                        <div
+                          key={page.id}
                           style={{
-                            width: '100%',
-                            height: '150px',
-                            objectFit: 'cover',
-                            display: 'block'
+                            position: 'relative',
+                            border: isCover ? '3px solid #4caf50' : '1px solid #e0e0e0',
+                            borderRadius: '6px',
+                            overflow: 'hidden',
+                            background: '#f5f5f5',
+                            cursor: 'pointer'
                           }}
-                        />
-                        <div style={{
-                          position: 'absolute',
-                          top: '4px',
-                          right: '4px',
-                          background: 'rgba(255, 82, 82, 0.9)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '24px',
-                          height: '24px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '14px',
-                          lineHeight: '1'
-                        }}
-                        onClick={() => setConfirmDeletePage(page.id)}
-                        title="Удалить страницу"
-                      >
-                        ×
-                      </div>
-                        <div style={{
-                          padding: '4px 8px',
-                          fontSize: '12px',
-                          textAlign: 'center',
-                          background: 'rgba(0, 0, 0, 0.7)',
-                          color: 'white',
-                          position: 'absolute',
-                          bottom: 0,
-                          left: 0,
-                          right: 0
-                        }}>
-                          Страница {page.page_number}
+                          onClick={(e) => {
+                            // Не выбираем обложку при клике на кнопку удаления
+                            if (e.target.closest('button') || e.target.textContent === '×') {
+                              return;
+                            }
+                            setCoverPageId(page.id);
+                          }}
+                          title={isCover ? 'Текущая обложка. Кликните, чтобы выбрать другую.' : 'Кликните, чтобы сделать обложкой'}
+                        >
+                          <img
+                            src={page.processed_url || page.original_url}
+                            alt={`Страница ${page.page_number}`}
+                            style={{
+                              width: '100%',
+                              height: '150px',
+                              objectFit: 'cover',
+                              display: 'block'
+                            }}
+                          />
+                          {isCover && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '4px',
+                              left: '4px',
+                              background: 'rgba(76, 175, 80, 0.9)',
+                              color: 'white',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 'bold'
+                            }}>
+                              Обложка
+                            </div>
+                          )}
+                          <button
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              background: 'rgba(255, 82, 82, 0.9)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '24px',
+                              height: '24px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '14px',
+                              lineHeight: '1',
+                              padding: 0
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeletePage(page.id);
+                            }}
+                            title="Удалить страницу"
+                          >
+                            ×
+                          </button>
+                          <div style={{
+                            padding: '4px 8px',
+                            fontSize: '12px',
+                            textAlign: 'center',
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            color: 'white',
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0
+                          }}>
+                            Страница {page.page_number}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div style={{

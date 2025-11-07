@@ -405,6 +405,49 @@ GET /api/books/{id}/
 PUT /api/books/{id}/
 PATCH /api/books/{id}/
 ```
+**Требуется авторизация:** Да (IsOwnerOrReadOnly - только владелец книги)
+
+**Body (JSON):**
+```json
+{
+  "title": "Название книги",
+  "subtitle": "Второе название",
+  "category": 1,
+  "author_ids": [1, 2],
+  "publisher": 1,
+  "publication_place": "Москва",
+  "year": 2023,
+  "year_approx": "",
+  "pages_info": "300 стр., ил.",
+  "circulation": 5000,
+  "language_name": "Русский",
+  "binding_type": "hard",
+  "binding_details": "Твердый переплет, красный",
+  "format": "regular",
+  "condition": "excellent",
+  "condition_details": "",
+  "isbn": "978-5-123456-78-9",
+  "description": "Описание книги",
+  "status": "none",
+  "library": 1,
+  "cover_page": 123  // ID страницы (BookPage), которая будет использоваться как обложка
+}
+```
+
+**Важные поля:**
+- `cover_page` - ID страницы (BookPage), которая будет использоваться как обложка книги. Если не указано, обложка остается без изменений.
+- `author_ids` - массив ID авторов (до 3-х)
+- `language_name` - название языка (если язык не найден, будет создан новый)
+- Все остальные поля опциональны (можно обновить только нужные)
+
+**Ответ:** `200 OK`
+Возвращается полная информация о книге в формате `BookDetailSerializer`, включая:
+- Все поля книги
+- `cover_page` - ID обложки (если назначена)
+- `pages` - список всех страниц книги
+- `electronic_versions` - список электронных версий
+- `reviews` - список отзывов
+- `reading_dates` - список дат прочтения
 
 ### Удаление книги
 ```

@@ -475,7 +475,7 @@ class BookSerializer(serializers.ModelSerializer):
             'language', 'language_name',
             'binding_type', 'binding_details', 'format',
             'price_rub', 'description', 'condition', 'condition_details',
-            'seller_code', 'isbn',
+            'seller_code', 'isbn', 'cover_page',
             'images_count', 'images', 'first_page_url', 'reviews_count', 'electronic_versions_count',
             'created_at', 'updated_at'
         ]
@@ -627,6 +627,7 @@ class BookUpdateSerializer(serializers.ModelSerializer):
             'price_rub', 'description',
             'condition', 'condition_details',
             'seller_code', 'isbn',
+            'cover_page',
             'author_ids'
         ]
         extra_kwargs = {

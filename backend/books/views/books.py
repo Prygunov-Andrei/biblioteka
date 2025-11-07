@@ -118,6 +118,33 @@ class BookViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(response_serializer.data)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
+    def update(self, request, *args, **kwargs):
+        """Обновление книги с возвратом BookDetailSerializer"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        # Возвращаем обновленную книгу с помощью BookDetailSerializer, чтобы включить cover_page
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+        
+        # Загружаем связанные данные для детального сериализатора
+        instance = self.get_queryset().prefetch_related(
+            'images', 'electronic_versions', 'pages_set',
+            Prefetch('reviews', queryset=BookReview.objects.select_related('user').order_by('-created_at')),
+            'reading_dates'
+        ).get(pk=instance.pk)
+        
+        response_serializer = BookDetailSerializer(instance, context={'request': request})
+        return Response(response_serializer.data)
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Частичное обновление книги"""
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+    
     def get_queryset(self):
         """Оптимизированный queryset с аннотациями и фильтрацией"""
         queryset = super().get_queryset()
