@@ -65,6 +65,15 @@ const UploadPagesStep = ({ files, onFilesChange, onNext, onSkip, normalizedPages
       return;
     }
 
+    // Проверяем, что все файлы - это объекты File
+    const invalidFiles = files.filter(file => !(file instanceof File) && !(file instanceof Blob));
+    if (invalidFiles.length > 0) {
+      console.error('Обнаружены файлы неправильного типа:', invalidFiles);
+      setNormalizationError('Ошибка: некоторые файлы имеют неправильный тип. Пожалуйста, загрузите файлы заново.');
+      setShowErrorModal(true);
+      return;
+    }
+
     setHasStartedNormalization(true);
     setProcessing(true);
     setProgress(0);
@@ -73,6 +82,9 @@ const UploadPagesStep = ({ files, onFilesChange, onNext, onSkip, normalizedPages
     setNormalizationError(null);
 
     try {
+      console.log('🚀 Запуск нормализации для', files.length, 'файлов');
+      console.log('📁 Типы файлов:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
+      
       // Симулируем прогресс нормализации (0-40% общего прогресса)
       const progressInterval = setInterval(() => {
         setProgress((prev) => {
