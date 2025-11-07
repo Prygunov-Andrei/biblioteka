@@ -412,7 +412,8 @@ def normalize_pages_batch(files):
             import traceback
             import sys
             error_trace = traceback.format_exc()
-            print(f"⚠️ Ошибка обработки файла {file.name}: {e}", file=sys.stderr)
+            error_msg = f"⚠️ Ошибка обработки файла {file.name}: {e}"
+            print(error_msg, file=sys.stderr)
             print(f"⚠️ Traceback:\n{error_trace}", file=sys.stderr)
             sys.stderr.flush()
             # Можно добавить информацию об ошибке в результат

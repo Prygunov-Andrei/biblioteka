@@ -342,6 +342,7 @@ class BookViewSet(viewsets.ModelViewSet):
         }
         """
         import sys
+        import traceback
         print("=" * 80, file=sys.stderr)
         print("🔵 normalize_pages ENDPOINT ВЫЗВАН!", file=sys.stderr)
         print(f"🔵 request.method: {request.method}", file=sys.stderr)
@@ -358,7 +359,6 @@ class BookViewSet(viewsets.ModelViewSet):
             )
         
         try:
-            import sys
             print(f"🔵 normalize_pages endpoint вызван с {len(files)} файлами", file=sys.stderr)
             for i, f in enumerate(files):
                 print(f"  Файл {i+1}: {f.name}, размер: {f.size} байт, тип: {f.content_type}", file=sys.stderr)
@@ -367,13 +367,15 @@ class BookViewSet(viewsets.ModelViewSet):
             # Обрабатываем файлы
             normalized_images = normalize_pages_batch(files)
             
-            print(f"🔵 normalize_pages_batch вернул {len(normalized_images)} результатов")
+            print(f"🔵 normalize_pages_batch вернул {len(normalized_images)} результатов", file=sys.stderr)
+            sys.stderr.flush()
             
             # Фильтруем успешно обработанные изображения
             successful = [img for img in normalized_images if img.get('normalized_url')]
             failed = [img for img in normalized_images if img.get('error')]
             
-            print(f"🔵 Успешно: {len(successful)}, Ошибок: {len(failed)}")
+            print(f"🔵 Успешно: {len(successful)}, Ошибок: {len(failed)}", file=sys.stderr)
+            sys.stderr.flush()
             
             return Response({
                 'normalized_images': normalized_images,
@@ -385,11 +387,12 @@ class BookViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            import traceback
-            print(f"🔴 ОШИБКА в normalize_pages endpoint: {str(e)}")
-            print(f"🔴 Traceback: {traceback.format_exc()}")
+            error_trace = traceback.format_exc()
+            print(f"🔴 ОШИБКА в normalize_pages endpoint: {str(e)}", file=sys.stderr)
+            print(f"🔴 Traceback:\n{error_trace}", file=sys.stderr)
+            sys.stderr.flush()
             return Response(
-                {'error': f'Ошибка обработки: {str(e)}'},
+                {'error': f'Ошибка обработки: {str(e)}', 'traceback': error_trace if settings.DEBUG else None},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
