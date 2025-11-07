@@ -94,7 +94,21 @@ class BookViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Создание книги с авторами и хэштегами"""
+        import sys
+        import json
+        
+        # Логируем входящие данные для отладки
+        print(f"🔵 BookViewSet.create вызван", file=sys.stderr)
+        print(f"🔵 Данные запроса: {json.dumps(request.data, indent=2, default=str)}", file=sys.stderr)
+        sys.stderr.flush()
+        
         serializer = self.get_serializer(data=request.data)
+        
+        # Логируем ошибки валидации перед raise_exception
+        if not serializer.is_valid():
+            print(f"🔴 Ошибки валидации: {json.dumps(serializer.errors, indent=2, default=str)}", file=sys.stderr)
+            sys.stderr.flush()
+        
         serializer.is_valid(raise_exception=True)
         book = serializer.save()
         

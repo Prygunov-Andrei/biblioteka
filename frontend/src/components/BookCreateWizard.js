@@ -192,22 +192,22 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
         author_ids: data.formData.author_ids || [],
         publisher: data.formData.publisher || null,
         publication_place: data.formData.publication_place || null,
-        year: data.formData.year ? parseInt(data.formData.year) : null,
+        year: data.formData.year ? (isNaN(parseInt(data.formData.year)) ? null : parseInt(data.formData.year)) : null,
         year_approx: data.formData.year_approx || null,
         pages_info: data.formData.pages_info || null,
-        circulation: data.formData.circulation ? parseInt(data.formData.circulation) : null,
+        circulation: data.formData.circulation ? (isNaN(parseInt(data.formData.circulation)) ? null : parseInt(data.formData.circulation)) : null,
         language_name: data.formData.language_name || null, // Будет обработано на бэкенде
         binding_type: data.formData.binding_type || null,
         binding_details: data.formData.binding_details || null,
         format: data.formData.format || null,
         condition: data.formData.condition || null,
         condition_details: data.formData.condition_details || null,
-        isbn: data.formData.isbn || null,
+        isbn: data.formData.isbn ? (data.formData.isbn.includes(',') ? data.formData.isbn.split(',')[0].trim() : data.formData.isbn.trim()).substring(0, 20) : null, // Берем только первый ISBN и обрезаем до 20 символов
         description: data.formData.description || null,
         library: libraryId, // Добавляем библиотеку (первую из списка пользователя, если не указана)
         status: data.formData.status || 'none', // Статус по умолчанию
-        normalized_image_urls: normalizedImageUrls.length > 0 ? normalizedImageUrls : null, // Пути к нормализованным изображениям
-        cover_page_index: data.formData.cover_page_index !== undefined ? data.formData.cover_page_index : 0, // Индекс обложки
+        normalized_image_urls: normalizedImageUrls.length > 0 ? normalizedImageUrls : [], // Пути к нормализованным изображениям (всегда массив)
+        cover_page_index: normalizedImageUrls.length > 0 ? (data.formData.cover_page_index !== undefined ? data.formData.cover_page_index : 0) : undefined, // Индекс обложки (только если есть изображения)
         // TODO: добавить hashtags, electronicVersions когда будут реализованы
       };
 
@@ -215,16 +215,23 @@ const BookCreateWizard = ({ isOpen, onClose, onComplete }) => {
       Object.keys(bookData).forEach(key => {
         if (bookData[key] === null || bookData[key] === undefined || bookData[key] === '') {
           // Не удаляем library, status и normalized_image_urls, даже если они null/'none'/[]
+          // cover_page_index удаляем, если он undefined (нет изображений)
           if (key !== 'library' && key !== 'status' && key !== 'normalized_image_urls') {
             delete bookData[key];
           }
         }
       });
       
-      // Если normalized_image_urls пустой массив, удаляем его
-      if (bookData.normalized_image_urls && bookData.normalized_image_urls.length === 0) {
-        delete bookData.normalized_image_urls;
+      // Удаляем cover_page_index, если он undefined (нет изображений)
+      if (bookData.cover_page_index === undefined) {
+        delete bookData.cover_page_index;
       }
+      
+      // Если normalized_image_urls пустой массив, оставляем его (бэкенд обработает)
+      // Не удаляем, так как сериализатор ожидает массив (allow_empty=True)
+
+      // Логируем финальные данные перед отправкой
+      console.log('BookCreateWizard: финальные данные для отправки:', JSON.stringify(bookData, null, 2));
 
       // Отправляем запрос на создание книги
       const createdBook = await booksAPI.create(bookData);

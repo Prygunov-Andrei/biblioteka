@@ -298,7 +298,44 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
         });
       } catch (err) {
         console.error('Ошибка создания книги:', err);
-        setError(err.response?.data?.error || err.message || 'Не удалось создать книгу');
+        console.error('Детали ошибки:', err.response?.data);
+        
+        // Формируем детальное сообщение об ошибке
+        let errorMessage = 'Не удалось создать книгу';
+        if (err.response?.data) {
+          const errorData = err.response.data;
+          // Если есть общая ошибка
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+          // Если есть ошибки валидации полей
+          else if (typeof errorData === 'object') {
+            const fieldErrors = [];
+            for (const [field, messages] of Object.entries(errorData)) {
+              if (Array.isArray(messages)) {
+                fieldErrors.push(`${field}: ${messages.join(', ')}`);
+              } else if (typeof messages === 'string') {
+                fieldErrors.push(`${field}: ${messages}`);
+              } else if (typeof messages === 'object') {
+                // Вложенные ошибки (например, для списков)
+                for (const [key, value] of Object.entries(messages)) {
+                  if (Array.isArray(value)) {
+                    fieldErrors.push(`${field}[${key}]: ${value.join(', ')}`);
+                  } else {
+                    fieldErrors.push(`${field}[${key}]: ${value}`);
+                  }
+                }
+              }
+            }
+            if (fieldErrors.length > 0) {
+              errorMessage = 'Ошибки валидации:\n' + fieldErrors.join('\n');
+            }
+          }
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
+        
+        setError(errorMessage);
         setCreating(false);
       }
     } else if (onNext) {
