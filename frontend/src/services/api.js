@@ -310,6 +310,18 @@ export const booksAPI = {
     const response = await apiClient.delete(`/books/${bookId}/reading_dates/${dateId}/`);
     return response.data;
   },
+  // Передача книги
+  transferBook: async (bookId, libraryId = null, userId = null) => {
+    const data = {};
+    if (libraryId) {
+      data.library = libraryId;
+    }
+    if (userId) {
+      data.user = userId;
+    }
+    const response = await apiClient.post(`/books/${bookId}/transfer/`, data);
+    return response.data;
+  },
 };
 
 // API методы для авторов

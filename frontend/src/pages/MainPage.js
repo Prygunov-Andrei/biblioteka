@@ -7,6 +7,7 @@ import Filters from '../components/Filters';
 import BookDetailModal from '../components/BookDetailModal';
 import BookCreateWizard from '../components/BookCreateWizard';
 import BookEditModal from '../components/BookEditModal';
+import BookTransferModal from '../components/BookTransferModal';
 import { authAPI, categoriesAPI, booksAPI, hashtagsAPI } from '../services/api';
 import './MainPage.css';
 
@@ -82,6 +83,10 @@ const MainPage = () => {
   // Состояние для модального окна редактирования книги
   const [editingBook, setEditingBook] = useState(null);
   const [isBookEditModalOpen, setIsBookEditModalOpen] = useState(false);
+
+  // Состояние для модального окна передачи книги
+  const [transferringBook, setTransferringBook] = useState(null);
+  const [isBookTransferModalOpen, setIsBookTransferModalOpen] = useState(false);
 
   useEffect(() => {
     loadHashtags();
@@ -159,9 +164,27 @@ const MainPage = () => {
   };
 
   const handleTransferBook = (book) => {
-    // TODO: Реализовать в Этапе 8
-    console.log('Передача книги:', book);
-    handleCloseBookDetail();
+    setTransferringBook(book);
+    setIsBookTransferModalOpen(true);
+    // Не закрываем BookDetailModal, чтобы после передачи пользователь мог продолжить просмотр
+  };
+
+  const handleCloseBookTransferModal = () => {
+    setIsBookTransferModalOpen(false);
+    setTransferringBook(null);
+  };
+
+  const handleBookTransferred = (updatedBook) => {
+    // Обновляем список книг
+    loadBooks();
+    
+    // Если переданная книга открыта в BookDetailModal, обновляем её данные
+    if (selectedBookId === updatedBook.id && isBookDetailModalOpen) {
+      setBookDetailModalRefreshTrigger(prev => prev + 1);
+    }
+    
+    // Закрываем модальное окно передачи
+    handleCloseBookTransferModal();
   };
 
   const handleDeleteBook = (book) => {
@@ -479,6 +502,14 @@ const MainPage = () => {
         isOpen={isBookEditModalOpen}
         onClose={handleCloseBookEditModal}
         onSave={handleBookEditSave}
+      />
+
+      {/* Модальное окно передачи книги */}
+      <BookTransferModal
+        book={transferringBook}
+        isOpen={isBookTransferModalOpen}
+        onClose={handleCloseBookTransferModal}
+        onTransfer={handleBookTransferred}
       />
     </div>
   );

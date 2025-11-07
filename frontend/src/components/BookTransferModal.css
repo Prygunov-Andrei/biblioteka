@@ -1,0 +1,303 @@
+.book-transfer-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.book-transfer-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+  overflow: hidden;
+}
+
+.dark-theme .book-transfer-modal {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.book-transfer-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.dark-theme .book-transfer-modal-header {
+  border-bottom-color: #444;
+}
+
+.book-transfer-modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.book-transfer-modal-close {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.book-transfer-modal-close:hover:not(:disabled) {
+  background: #f0f0f0;
+  color: #000;
+}
+
+.book-transfer-modal-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dark-theme .book-transfer-modal-close {
+  color: #aaa;
+}
+
+.dark-theme .book-transfer-modal-close:hover:not(:disabled) {
+  background: #444;
+  color: #fff;
+}
+
+.book-transfer-modal-body {
+  padding: 24px;
+}
+
+.book-transfer-info {
+  margin-bottom: 24px;
+}
+
+.book-transfer-info p {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.dark-theme .book-transfer-info p {
+  color: #ddd;
+}
+
+.book-transfer-book-info {
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  font-size: 14px;
+}
+
+.dark-theme .book-transfer-book-info {
+  background: #333;
+  border-color: #555;
+  color: #fff;
+}
+
+.book-transfer-book-info strong {
+  font-weight: 600;
+}
+
+.book-transfer-loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.dark-theme .book-transfer-loading {
+  color: #aaa;
+}
+
+.book-transfer-error {
+  padding: 16px;
+  background: #ffebee;
+  border: 1px solid #f44336;
+  border-radius: 6px;
+  color: #c62828;
+  text-align: center;
+}
+
+.dark-theme .book-transfer-error {
+  background: #3d1f1f;
+  border-color: #f44336;
+  color: #ffcdd2;
+}
+
+.book-transfer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.dark-theme .form-group label {
+  color: #ddd;
+}
+
+.form-group label.required::after {
+  content: ' *';
+  color: #f44336;
+}
+
+.form-input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  background: white;
+  color: #333;
+}
+
+.dark-theme .form-input {
+  background: #333;
+  border-color: #555;
+  color: #fff;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.form-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.book-transfer-form-error {
+  background: #ffebee;
+  border: 1px solid #f44336;
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #c62828;
+  font-size: 14px;
+}
+
+.dark-theme .book-transfer-form-error {
+  background: #3d1f1f;
+  border-color: #f44336;
+  color: #ffcdd2;
+}
+
+.book-transfer-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.dark-theme .book-transfer-modal-actions {
+  border-top-color: #444;
+}
+
+.book-transfer-modal-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.book-transfer-modal-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.book-transfer-modal-button-cancel {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.dark-theme .book-transfer-modal-button-cancel {
+  background: #444;
+  color: #fff;
+}
+
+.book-transfer-modal-button-cancel:hover:not(:disabled) {
+  background: #e0e0e0;
+}
+
+.dark-theme .book-transfer-modal-button-cancel:hover:not(:disabled) {
+  background: #555;
+}
+
+.book-transfer-modal-button-transfer {
+  background: #1976d2;
+  color: white;
+}
+
+.book-transfer-modal-button-transfer:hover:not(:disabled) {
+  background: #1565c0;
+}
+
+@media (max-width: 768px) {
+  .book-transfer-modal {
+    width: 95%;
+  }
+
+  .book-transfer-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .book-transfer-modal-button {
+    width: 100%;
+  }
+}
+
