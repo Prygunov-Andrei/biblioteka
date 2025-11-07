@@ -92,8 +92,19 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
 
   // Обновляем форму при изменении autoFillData
   useEffect(() => {
-    if (autoFillData && categories.length > 0) {
+    console.log('BookFormStep: useEffect сработал, autoFillData:', autoFillData, 'categories.length:', categories.length);
+    
+    // Нормализуем авторы и запускаем поиск даже если категории еще не загружены
+    // Но для поиска категории нужны, поэтому поиск авторов запустим отдельно
+    if (autoFillData) {
       console.log('BookFormStep: получены данные от LLM:', autoFillData);
+      console.log('BookFormStep: авторы в autoFillData:', autoFillData.authors, 'тип:', typeof autoFillData.authors, 'isArray:', Array.isArray(autoFillData.authors));
+      
+      // Сбрасываем флаг поиска авторов при новом autoFillData
+      // Это позволяет запустить поиск заново, если autoFillData изменился
+      if (autoFillData.authors && Array.isArray(autoFillData.authors) && autoFillData.authors.length > 0) {
+        isSearchingAuthorsRef.current = false;
+      }
       
       // Флаг для предотвращения повторного выполнения поиска
       let isSearching = false;
@@ -106,12 +117,38 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
         // Находим категорию по ID для отображения
         const selectedCategory = categoryId ? categories.find(cat => cat.id === categoryId) : null;
         
+        // Нормализуем авторов из autoFillData: если они приходят как строки, преобразуем в объекты
+        let normalizedAuthorsFromAutoFill = [];
+        if (autoFillData.authors && Array.isArray(autoFillData.authors)) {
+          normalizedAuthorsFromAutoFill = autoFillData.authors.map((author, index) => {
+            if (typeof author === 'string') {
+              // Если автор - строка, создаем временный объект
+              return {
+                id: `temp-${Date.now()}-${index}`,
+                full_name: author.trim(),
+                isTemporary: true
+              };
+            } else if (author && typeof author === 'object' && author.full_name) {
+              // Если уже объект с full_name, возвращаем как есть
+              return author;
+            }
+            return null;
+          }).filter(a => a !== null);
+        }
+        
+        // Создаем обновленный объект, но исключаем authors из autoFillData, чтобы не перезаписать нормализованных авторов
+        const { authors: _, ...autoFillDataWithoutAuthors } = autoFillData;
+        
         const updated = {
           ...prev,
-          ...autoFillData,
+          ...autoFillDataWithoutAuthors,
           // Авторы будут обработаны отдельно после поиска
-          authors: [],
-          author_ids: [],
+          // НЕ сбрасываем авторы, если они уже установлены (из предыдущего поиска)
+          // Но если есть авторы из autoFillData, используем их (нормализованные)
+          authors: prev.authors && prev.authors.length > 0 
+            ? prev.authors 
+            : normalizedAuthorsFromAutoFill,
+          author_ids: prev.author_ids && prev.author_ids.length > 0 ? prev.author_ids : [],
           // Убеждаемся, что category_id правильно обработан
           category_id: categoryId,
           // Сохраняем название категории для отображения
@@ -121,6 +158,8 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
         };
         console.log('BookFormStep: обновленные данные формы:', updated);
         console.log('BookFormStep: category_id:', updated.category_id, 'найдена категория:', selectedCategory);
+        console.log('BookFormStep: нормализованные авторы:', normalizedAuthorsFromAutoFill);
+        console.log('BookFormStep: авторы в updated:', updated.authors);
         return updated;
       });
 
@@ -152,9 +191,21 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
       }
 
       // Если LLM вернул авторов, ищем их в базе
+      // ВАЖНО: Запускаем поиск всегда, когда есть авторы в autoFillData, даже если они уже установлены как временные
+      // Но поиск запускаем только если категории загружены (для поиска категории не нужны, но для других операций могут быть)
+      console.log('BookFormStep: проверка условий для поиска авторов:', {
+        hasAuthors: !!(autoFillData.authors && Array.isArray(autoFillData.authors) && autoFillData.authors.length > 0),
+        authors: autoFillData.authors,
+        isSearching: isSearchingAuthorsRef.current,
+        categoriesLoaded: categories.length > 0
+      });
+      
+      // Запускаем поиск авторов даже если категории еще не загружены
+      // (поиск авторов не зависит от категорий)
       if (autoFillData.authors && Array.isArray(autoFillData.authors) && autoFillData.authors.length > 0 && !isSearchingAuthorsRef.current) {
         isSearchingAuthorsRef.current = true;
         console.log('BookFormStep: начинаем поиск авторов от LLM:', autoFillData.authors);
+        console.log('BookFormStep: текущие авторы в formData:', formData.authors);
         const searchAuthors = async () => {
           try {
             const foundAuthors = [];
@@ -173,16 +224,20 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
                   console.log(`BookFormStep: найдено авторов для "${nameToSearch}":`, authors.length, authors);
                   
                   if (authors.length > 0) {
+                    console.log(`BookFormStep: проверяем авторов для "${nameToSearch}":`, authors.map(a => a.full_name));
+                    
                     // Функция для проверки, содержит ли имя автора все слова из запроса (независимо от порядка)
                     const containsAllWords = (authorFullName, searchName) => {
                       const authorWords = authorFullName.toLowerCase().split(/\s+/).filter(w => w.length > 0);
                       const searchWords = searchName.toLowerCase().split(/\s+/).filter(w => w.length > 0);
                       // Проверяем, что каждое слово из запроса содержится в имени автора (или наоборот для коротких слов)
-                      return searchWords.every(word => 
+                      const result = searchWords.every(word => 
                         authorWords.some(authorWord => 
                           authorWord.includes(word) || word.includes(authorWord) || authorWord === word
                         )
                       );
+                      console.log(`BookFormStep: containsAllWords("${authorFullName}", "${searchName}") = ${result}`);
+                      return result;
                     };
                     
                     // Сначала ищем точное совпадение (без учета регистра)
@@ -199,9 +254,10 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
                       }
                     } else {
                       // Если точного совпадения нет, ищем автора, который содержит все слова из запроса
-                      const containsAllWordsMatch = authors.find(a => 
-                        a.full_name && containsAllWords(a.full_name, nameToSearch)
-                      );
+                      const containsAllWordsMatch = authors.find(a => {
+                        if (!a.full_name) return false;
+                        return containsAllWords(a.full_name, nameToSearch);
+                      });
                       
                       if (containsAllWordsMatch) {
                         console.log(`BookFormStep: найдено совпадение по всем словам для "${nameToSearch}":`, containsAllWordsMatch.full_name);
@@ -279,12 +335,22 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
             
             if (allAuthors.length > 0) {
               console.log('BookFormStep: устанавливаем авторов (найденные + временные):', allAuthors);
-              setFormData(prev => ({
-                ...prev,
-                authors: allAuthors,
-                // Сохраняем только ID реальных авторов (не временных)
-                author_ids: foundAuthors.map(a => a.id),
-              }));
+              const authorIds = foundAuthors.map(a => a.id);
+              setFormData(prev => {
+                const updated = {
+                  ...prev,
+                  authors: allAuthors,
+                  // Сохраняем только ID реальных авторов (не временных)
+                  author_ids: authorIds,
+                };
+                // Вызываем onFormDataChange после обновления состояния
+                if (onFormDataChange) {
+                  setTimeout(() => {
+                    onFormDataChange(updated);
+                  }, 0);
+                }
+                return updated;
+              });
             } else {
               console.log('BookFormStep: авторы не найдены, оставляем пустой массив');
             }
@@ -306,8 +372,12 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       console.log(`BookFormStep: handleChange обновляет formData для "${field}":`, updated);
+      // Вызываем onFormDataChange после обновления состояния, а не внутри setFormData
+      // Используем setTimeout для отложенного вызова, чтобы избежать обновления во время рендера
       if (onFormDataChange) {
-        onFormDataChange(updated);
+        setTimeout(() => {
+          onFormDataChange(updated);
+        }, 0);
       }
       return updated;
     });
@@ -387,6 +457,12 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
     }
   };
 
+  // Логируем изменения авторов для отладки
+  useEffect(() => {
+    console.log('BookFormStep: formData.authors изменились:', formData.authors);
+    console.log('BookFormStep: formData.author_ids изменились:', formData.author_ids);
+  }, [formData.authors, formData.author_ids]);
+
   // Обновляем cover_page_index при изменении selectedPageIndex
   useEffect(() => {
     if (selectedPageIndex !== undefined && selectedPageIndex !== null) {
@@ -394,7 +470,9 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
         if (prev.cover_page_index !== selectedPageIndex) {
           const updated = { ...prev, cover_page_index: selectedPageIndex };
           if (onFormDataChange) {
-            onFormDataChange(updated);
+            setTimeout(() => {
+              onFormDataChange(updated);
+            }, 0);
           }
           return updated;
         }
@@ -508,17 +586,66 @@ const BookFormStep = ({ autoFillData, onFormDataChange, onNext, onCreate, normal
         <div className="form-group">
           <label htmlFor="authors">Авторы</label>
           <AuthorAutocomplete
-            selectedAuthors={formData.authors || []}
+            selectedAuthors={(() => {
+              const authors = Array.isArray(formData.authors) ? formData.authors : [];
+              // Нормализуем авторов: если они приходят как строки, преобразуем в объекты
+              const normalized = authors.map(a => {
+                if (typeof a === 'string') {
+                  // Если автор - строка, создаем временный объект
+                  return {
+                    id: `temp-${Date.now()}-${Math.random()}`,
+                    full_name: a,
+                    isTemporary: true
+                  };
+                } else if (a && typeof a === 'object' && a.full_name) {
+                  // Если уже объект с full_name, возвращаем как есть
+                  return a;
+                } else {
+                  // Невалидный формат
+                  console.warn('BookFormStep: найден невалидный автор:', a);
+                  return null;
+                }
+              }).filter(a => a !== null); // Убираем null значения
+              
+              if (authors.length > 0 && normalized.length === 0) {
+                console.warn('BookFormStep: все авторы отфильтрованы! Исходные авторы:', authors);
+              }
+              return normalized;
+            })()}
             onChange={(authors) => {
               console.log('BookFormStep: onChange вызван с авторами:', authors);
-              handleChange('authors', authors);
+              
+              // Нормализуем авторов: убеждаемся, что это массив объектов с full_name
+              const normalizedAuthors = (authors || [])
+                .filter(a => a && typeof a === 'object' && a.full_name)
+                .map(a => ({
+                  id: a.id || `temp-${Date.now()}-${Math.random()}`,
+                  full_name: a.full_name,
+                  isTemporary: a.isTemporary || (a.id && String(a.id).startsWith('temp-'))
+                }));
+              
               // Сохраняем только ID реальных авторов (не временных с temp- префиксом)
-              const realAuthorIds = authors
+              const realAuthorIds = normalizedAuthors
                 .filter(a => a.id && !String(a.id).startsWith('temp-'))
                 .map(a => a.id);
               console.log('BookFormStep: realAuthorIds:', realAuthorIds);
-              handleChange('author_ids', realAuthorIds);
-              console.log('BookFormStep: formData после обновления:', { ...formData, authors, author_ids: realAuthorIds });
+              
+              // Обновляем оба поля одновременно, чтобы избежать двойного обновления родителя
+              setFormData(prev => {
+                const updated = {
+                  ...prev,
+                  authors: normalizedAuthors,
+                  author_ids: realAuthorIds,
+                };
+                console.log('BookFormStep: formData после обновления:', updated);
+                // Вызываем onFormDataChange после обновления состояния
+                if (onFormDataChange) {
+                  setTimeout(() => {
+                    onFormDataChange(updated);
+                  }, 0);
+                }
+                return updated;
+              });
             }}
             maxAuthors={3}
             placeholder="Введите автора"

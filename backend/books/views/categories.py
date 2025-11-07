@@ -60,6 +60,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         - Только родительские категории (без parent_category)
         - С вложенными подкатегориями
         - Поддерживает фильтрацию по библиотекам для подсчета книг
+        - ВАЖНО: Если библиотеки не указаны, возвращает пустой список
         """
         from django.db.models import Count, Q
         from books.models import Book
@@ -68,62 +69,49 @@ class CategoryViewSet(viewsets.ModelViewSet):
         from ..utils import parse_library_ids
         library_ids = parse_library_ids(request)
         
+        # ВАЖНО: Если библиотеки не указаны, возвращаем пустой список категорий
+        # (не показываем все категории, если библиотеки не выбраны)
+        if not library_ids:
+            return Response([])
+        
         # Аннотируем подкатегории для каждой родительской категории
         from django.db.models import Prefetch
-        if library_ids:
-            subcategories_queryset = Category.objects.filter(
-                parent_category__isnull=False
-            ).annotate(
-                books_count=Count(
-                    'books',
-                    filter=Q(books__library_id__in=library_ids),
-                    distinct=True
-                )
-            ).order_by('name')
-        else:
-            subcategories_queryset = Category.objects.filter(
-                parent_category__isnull=False
-            ).annotate(
-                books_count=Count('books', distinct=True)
-            ).order_by('name')
+        subcategories_queryset = Category.objects.filter(
+            parent_category__isnull=False
+        ).annotate(
+            books_count=Count(
+                'books',
+                filter=Q(books__library_id__in=library_ids),
+                distinct=True
+            )
+        ).order_by('name')
         
         # Формируем queryset для родительских категорий
         parent_categories = Category.objects.filter(
             parent_category__isnull=True
         ).order_by('name')  # Сортировка по алфавиту
         
-        # Если указаны библиотеки, фильтруем книги для подсчета
-        if library_ids:
-            # Аннотируем количество книг с фильтрацией по библиотекам
-            parent_categories = parent_categories.annotate(
-                books_count_annotated=Count(
-                    'books',
-                    filter=Q(books__library_id__in=library_ids),
-                    distinct=True
-                ),
-                subcategories_books_count_annotated=Count(
-                    'subcategories__books',
-                    filter=Q(subcategories__books__library_id__in=library_ids),
-                    distinct=True
-                )
+        # Аннотируем количество книг с фильтрацией по библиотекам
+        parent_categories = parent_categories.annotate(
+            books_count_annotated=Count(
+                'books',
+                filter=Q(books__library_id__in=library_ids),
+                distinct=True
+            ),
+            subcategories_books_count_annotated=Count(
+                'subcategories__books',
+                filter=Q(subcategories__books__library_id__in=library_ids),
+                distinct=True
             )
+        )
         
         # Добавляем prefetch для подкатегорий (должно быть ПОСЛЕ аннотаций)
         parent_categories = parent_categories.prefetch_related(
             Prefetch('subcategories', queryset=subcategories_queryset)
         )
         
-        # Фильтруем категории с нулевым количеством книг
-        # Если библиотеки не указаны, добавляем аннотации для фильтрации
-        if not library_ids:
-            parent_categories = parent_categories.annotate(
-                books_count_annotated=Count('books', distinct=True),
-                subcategories_books_count_annotated=Count('subcategories__books', distinct=True)
-            )
-        
         # Фильтруем родительские категории: показываем только если есть книги
         # (либо в самой категории, либо в подкатегориях)
-        from django.db.models import Q
         parent_categories = parent_categories.filter(
             Q(books_count_annotated__gt=0) | Q(subcategories_books_count_annotated__gt=0)
         )

@@ -92,7 +92,15 @@ const AuthorAutocomplete = ({ selectedAuthors = [], onChange, maxAuthors = 3, pl
   };
 
   const handleRemoveAuthor = (authorId) => {
-    const newAuthors = selectedAuthors.filter(author => author.id !== authorId);
+    if (!authorId) return;
+    const newAuthors = selectedAuthors.filter(author => {
+      // Сравниваем по id, если он есть, иначе по full_name
+      if (author.id) {
+        return author.id !== authorId;
+      }
+      // Если id нет, но есть full_name, сравниваем по нему (для обратной совместимости)
+      return true; // Оставляем авторов без id (не должны удаляться по authorId)
+    });
     onChange && onChange(newAuthors);
   };
 
